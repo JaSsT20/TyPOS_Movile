@@ -20,13 +20,14 @@ data class LoginUiState(
     val errorUsuario: String? = null,
     val errorClave: String? = null,
     val mensajeErrorGeneral: String? = null,
+    val mensajeExito: String? = null,
     val estaCargando: Boolean = false,
     val loginExitoso: Boolean = false
 )
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repositorio: UsuarioRepositorio
+    val repositorio: UsuarioRepositorio
 
     init {
         val baseDatos = AppBaseDatos.obtenerBaseDatos(application)
@@ -41,7 +42,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 usuario = nuevoUsuario,
                 errorUsuario = null,
-                mensajeErrorGeneral = null
+                mensajeErrorGeneral = null,
+                mensajeExito = null
             )
         }
     }
@@ -51,7 +53,21 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 clave = nuevaClave,
                 errorClave = null,
-                mensajeErrorGeneral = null
+                mensajeErrorGeneral = null,
+                mensajeExito = null
+            )
+        }
+    }
+
+    fun onUsuarioRegistradoConExito(nombreUsuario: String) {
+        _uiState.update {
+            it.copy(
+                usuario = nombreUsuario,
+                clave = "",
+                errorUsuario = null,
+                errorClave = null,
+                mensajeErrorGeneral = null,
+                mensajeExito = "¡Usuario '$nombreUsuario' activado con éxito! Ingresa tu contraseña para entrar."
             )
         }
     }
@@ -85,7 +101,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        _uiState.update { it.copy(estaCargando = true, mensajeErrorGeneral = null) }
+        _uiState.update { it.copy(estaCargando = true, mensajeErrorGeneral = null, mensajeExito = null) }
 
         viewModelScope.launch {
             // Asegurar que exista al menos el admin inicial si es la primerísima ejecución

@@ -33,6 +33,34 @@ class UsuarioRepositorio(private val usuarioDao: UsuarioDao) {
         withContext(Dispatchers.IO) {
             usuarioDao.contarUsuarios()
         }
+
+    suspend fun existeUsuario(nombreUsuario: String): Boolean =
+        withContext(Dispatchers.IO) {
+            usuarioDao.buscarPorNombreUsuarioInsensible(nombreUsuario.trim()) != null
+        }
+
+    suspend fun registrarNuevoUsuario(
+        nombreUsuario: String,
+        nombreCompleto: String,
+        clave: String,
+        rol: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            if (existeUsuario(nombreUsuario)) {
+                return@withContext false
+            }
+            val nuevo = UsuarioEntidad(
+                nombreUsuario = nombreUsuario.trim().lowercase(),
+                nombreCompleto = nombreCompleto.trim().ifBlank { nombreUsuario.trim() },
+                clave = clave.trim(),
+                rol = if (rol.equals("ADMINISTRADOR", ignoreCase = true)) "ADMINISTRADOR" else "CAJERO",
+                estaActivo = true
+            )
+            usuarioDao.insertar(nuevo) > 0
+        } catch (e: Exception) {
+            false
+        }
+    }
 }
 
 sealed interface ResultadoAutenticacion {

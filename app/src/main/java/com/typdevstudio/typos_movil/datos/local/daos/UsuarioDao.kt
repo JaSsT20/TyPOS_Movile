@@ -14,6 +14,9 @@ interface UsuarioDao {
     @Query("SELECT * FROM usuarios WHERE nombre_usuario = :nombreUsuario AND esta_activo = 1 LIMIT 1")
     suspend fun obtenerPorNombreUsuario(nombreUsuario: String): UsuarioEntidad?
 
+    @Query("SELECT * FROM usuarios WHERE LOWER(nombre_usuario) = LOWER(:nombreUsuario) LIMIT 1")
+    suspend fun buscarPorNombreUsuarioInsensible(nombreUsuario: String): UsuarioEntidad?
+
     @Query("SELECT * FROM usuarios WHERE id = :id LIMIT 1")
     suspend fun obtenerPorId(id: Long): UsuarioEntidad?
 
