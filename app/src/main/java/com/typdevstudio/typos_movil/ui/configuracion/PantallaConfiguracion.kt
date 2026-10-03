@@ -958,8 +958,7 @@ fun PantallaConfiguracion(
     if (info != null && info.hayActualizacion) {
         DialogoActualizacion(
             info = info,
-            alDescartar = { viewModel.descartarModalActualizacion() },
-            alActualizar = { viewModel.iniciarDescargaActualizacion(info.urlDescarga) }
+            alDescartar = { viewModel.descartarModalActualizacion() }
         )
     }
 }

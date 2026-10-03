@@ -6,11 +6,15 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
+import androidx.core.content.FileProvider
 import com.typdevstudio.typos_movil.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.BufferedInputStream
 import java.io.BufferedReader
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -29,8 +33,22 @@ data class InfoActualizacion(
 )
 
 /**
- * Servicio encargado de consultar las nuevas versiones publicadas en GitHub Releases.
- * Funciona de forma no intrusiva y sin bloquear la aplicación cuando no hay conexión.
+ * Estado y progreso de la descarga en tiempo real.
+ */
+data class ProgresoDescarga(
+    val estaDescargando: Boolean = false,
+    val bytesDescargados: Long = 0L,
+    val totalBytes: Long = 0L,
+    val porcentaje: Float = 0f,
+    val mbDescargados: Double = 0.0,
+    val mbTotales: Double = 0.0,
+    val completado: Boolean = false,
+    val error: String? = null
+)
+
+/**
+ * Servicio encargado de consultar las nuevas versiones publicadas en GitHub Releases
+ * y descargar/instalar los APKs de forma nativa e integrada dentro de la aplicación.
  */
 object ActualizadorApp {
 
@@ -75,8 +93,8 @@ object ActualizadorApp {
             val url = URL(urlApi)
             conexion = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 4500
-                readTimeout = 4500
+                connectTimeout = 5000
+                readTimeout = 5000
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
                 setRequestProperty("User-Agent", "TyPOS_Movil_Android_App")
             }
@@ -126,7 +144,6 @@ object ActualizadorApp {
                 tamanoMb = tamanoMb
             )
         } catch (e: Exception) {
-            // Error silencioso para no afectar la experiencia offline del usuario
             null
         } finally {
             conexion?.disconnect()
@@ -159,16 +176,165 @@ object ActualizadorApp {
     }
 
     /**
-     * Abre la URL del APK o la release en el navegador / gestor de descargas del sistema.
+     * Descarga el APK directamente dentro de la app con seguimiento de progreso en tiempo real.
+     * Al completarse, lanza automáticamente el instalador del paquete de Android.
      */
-    fun iniciarDescarga(contexto: Context, urlDescarga: String) {
+    suspend fun descargarEInstalarApk(
+        contexto: Context,
+        urlDescarga: String,
+        onProgreso: (ProgresoDescarga) -> Unit
+    ) = withContext(Dispatchers.IO) {
+        var conexion: HttpURLConnection? = null
+        try {
+            onProgreso(ProgresoDescarga(estaDescargando = true, porcentaje = 0f))
+
+            var urlActual = urlDescarga
+            var redirecciones = 0
+            var conexionFinal: HttpURLConnection? = null
+
+            // Seguir redirecciones (GitHub Releases redirige a AWS S3)
+            while (redirecciones < 6) {
+                val urlObj = URL(urlActual)
+                val conn = (urlObj.openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = true
+                    connectTimeout = 15000
+                    readTimeout = 20000
+                    setRequestProperty("User-Agent", "TyPOS_Movil_Android_App")
+                }
+                val codigoEstado = conn.responseCode
+                if (codigoEstado == HttpURLConnection.HTTP_MOVED_TEMP ||
+                    codigoEstado == HttpURLConnection.HTTP_MOVED_PERM ||
+                    codigoEstado == HttpURLConnection.HTTP_SEE_OTHER ||
+                    codigoEstado == 307 || codigoEstado == 308
+                ) {
+                    val nuevaUrl = conn.getHeaderField("Location")
+                    conn.disconnect()
+                    if (nuevaUrl.isNullOrBlank()) break
+                    urlActual = nuevaUrl
+                    redirecciones++
+                } else {
+                    conexionFinal = conn
+                    break
+                }
+            }
+
+            conexion = conexionFinal ?: (URL(urlActual).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 15000
+                readTimeout = 20000
+                setRequestProperty("User-Agent", "TyPOS_Movil_Android_App")
+            }
+
+            if (conexion.responseCode !in 200..299) {
+                onProgreso(ProgresoDescarga(estaDescargando = false, error = "Error del servidor (${conexion.responseCode})"))
+                return@withContext
+            }
+
+            val totalBytes = conexion.contentLengthLong.let { if (it <= 0) conexion.contentLength.toLong() else it }
+            val mbTotales = if (totalBytes > 0) totalBytes / (1024.0 * 1024.0) else 0.0
+
+            val directorioDestino = File(contexto.cacheDir, "actualizaciones").apply {
+                if (!exists()) mkdirs()
+            }
+            val archivoApk = File(directorioDestino, "TyPOS_Movil_Actualizacion.apk")
+            if (archivoApk.exists()) {
+                archivoApk.delete()
+            }
+
+            val input = BufferedInputStream(conexion.inputStream)
+            val output = FileOutputStream(archivoApk)
+
+            val buffer = ByteArray(8192)
+            var bytesLeidos: Int
+            var totalDescargado = 0L
+            var ultimoReporteTiempo = System.currentTimeMillis()
+
+            while (input.read(buffer).also { bytesLeidos = it } != -1) {
+                output.write(buffer, 0, bytesLeidos)
+                totalDescargado += bytesLeidos
+
+                val ahora = System.currentTimeMillis()
+                // Reportar progreso cada 100ms para fluidez visual sin saturar la UI
+                if (ahora - ultimoReporteTiempo > 100 || totalDescargado == totalBytes) {
+                    ultimoReporteTiempo = ahora
+                    val porcentaje = if (totalBytes > 0) (totalDescargado.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f) else 0f
+                    val mbDescargados = totalDescargado / (1024.0 * 1024.0)
+                    onProgreso(
+                        ProgresoDescarga(
+                            estaDescargando = true,
+                            bytesDescargados = totalDescargado,
+                            totalBytes = totalBytes,
+                            porcentaje = porcentaje,
+                            mbDescargados = mbDescargados,
+                            mbTotales = mbTotales
+                        )
+                    )
+                }
+            }
+
+            output.flush()
+            output.close()
+            input.close()
+
+            onProgreso(
+                ProgresoDescarga(
+                    estaDescargando = false,
+                    completado = true,
+                    porcentaje = 1f,
+                    mbDescargados = totalDescargado / (1024.0 * 1024.0),
+                    mbTotales = mbTotales
+                )
+            )
+
+            // Abrir automáticamente el instalador nativo de Android
+            lanzarInstaladorApk(contexto, archivoApk)
+
+        } catch (e: Exception) {
+            onProgreso(ProgresoDescarga(estaDescargando = false, error = "Error al descargar: ${e.localizedMessage ?: "Error de red"}"))
+        } finally {
+            conexion?.disconnect()
+        }
+    }
+
+    /**
+     * Dispara el Intent nativo de Android para instalar el APK descargado usando FileProvider.
+     */
+    fun lanzarInstaladorApk(contexto: Context, archivoApk: File) {
+        try {
+            val uriApk = FileProvider.getUriForFile(
+                contexto,
+                "${contexto.packageName}.fileprovider",
+                archivoApk
+            )
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uriApk, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            contexto.startActivity(intent)
+        } catch (e: Exception) {
+            // Si el intent directo falla, abrir con el visor de archivos
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(Uri.fromFile(archivoApk), "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                contexto.startActivity(intent)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /**
+     * Método de respaldo: Abre la URL en el navegador externo si es necesario.
+     */
+    fun abrirEnNavegador(contexto: Context, urlDescarga: String) {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(urlDescarga)).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             contexto.startActivity(intent)
-        } catch (e: Exception) {
-            // Intent alternativo si falla el directo
+        } catch (_: Exception) {
         }
     }
 }

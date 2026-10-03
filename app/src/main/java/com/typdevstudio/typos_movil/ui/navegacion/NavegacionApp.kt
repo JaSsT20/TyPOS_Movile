@@ -66,11 +66,7 @@ fun NavegacionApp() {
         if (info.hayActualizacion) {
             DialogoActualizacion(
                 info = info,
-                alDescartar = { infoActualizacion = null },
-                alActualizar = {
-                    ActualizadorApp.iniciarDescarga(contexto, info.urlDescarga)
-                    infoActualizacion = null
-                }
+                alDescartar = { infoActualizacion = null }
             )
         }
     }
