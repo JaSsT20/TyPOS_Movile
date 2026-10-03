@@ -1,21 +1,29 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Reglas de optimización y preservación ProGuard/R8 para TyPOS Móvil
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Preservar información de líneas para informes de errores
+-keepattributes SourceFile,LineNumberTable
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- ROOM DATABASE ---
+-keep class androidx.room.RoomDatabase
+-dontwarn androidx.room.paging.**
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-keep class com.typdevstudio.typos_movil.datos.local.entidades.** { *; }
+-keep class com.typdevstudio.typos_movil.datos.local.relaciones.** { *; }
+-keep class com.typdevstudio.typos_movil.datos.local.daos.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- MODELOS DE DATOS, REPOSITORIOS Y UTILIDADES ---
+-keep class com.typdevstudio.typos_movil.utilidades.actualizador.** { *; }
+-keep class com.typdevstudio.typos_movil.utilidades.licencia.** { *; }
+-keep class com.typdevstudio.typos_movil.datos.repositorio.** { *; }
+-keep class com.typdevstudio.typos_movil.ui.ventas.ItemCarrito { *; }
+
+# --- ML KIT Y CAMERAX ---
+-keep class com.google.mlkit.vision.barcode.** { *; }
+-dontwarn com.google.mlkit.**
+-dontwarn androidx.camera.**
+
+# --- COROUTINES Y KOTLIN ---
+-dontwarn kotlinx.coroutines.**
+-dontwarn java.lang.invoke.**
