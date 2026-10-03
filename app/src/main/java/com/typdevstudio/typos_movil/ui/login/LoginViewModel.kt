@@ -104,19 +104,6 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(estaCargando = true, mensajeErrorGeneral = null, mensajeExito = null) }
 
         viewModelScope.launch {
-            // Asegurar que exista al menos el admin inicial si es la primerísima ejecución
-            if (repositorio.contarUsuarios() == 0) {
-                repositorio.registrarUsuario(
-                    UsuarioEntidad(
-                        nombreCompleto = "Administrador",
-                        nombreUsuario = "admin",
-                        clave = "admin",
-                        rol = "ADMINISTRADOR",
-                        estaActivo = true
-                    )
-                )
-            }
-
             val resultado = repositorio.autenticar(usuarioTrim, claveTrim)
             when (resultado) {
                 is ResultadoAutenticacion.Exito -> {

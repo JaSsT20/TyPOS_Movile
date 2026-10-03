@@ -260,16 +260,6 @@ fun PantallaLogin(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Nota informativa para primer acceso
-            Text(
-                text = "Acceso predeterminado: usuario: admin | clave: admin",
-                fontSize = 11.sp,
-                color = GrisSecundario,
-                textAlign = TextAlign.Center
-            )
         }
     }
 
