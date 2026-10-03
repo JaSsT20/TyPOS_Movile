@@ -43,6 +43,10 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -623,7 +627,107 @@ fun PantallaConfiguracion(
                 columnas = estado.columnasPersonalizadas
             )
 
-            // Sección 4: Actualizaciones y Versión
+            // Sección 4: Tema y Apariencia Visual
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(AzulPrimarioClaro.copy(alpha = 0.3f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Palette,
+                                contentDescription = null,
+                                tint = AzulPrimario,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Tema y Apariencia",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GrisTexto
+                            )
+                            Text(
+                                text = "Elige la combinación de colores que prefieras",
+                                fontSize = 12.sp,
+                                color = GrisSecundario
+                            )
+                        }
+                    }
+
+                    // Opciones de tema: Sistema (0), Claro (1), Oscuro (2)
+                    val opcionesTema = listOf(
+                        Triple(0, "Seguir el Sistema", Icons.Filled.BrightnessAuto),
+                        Triple(1, "Modo Claro", Icons.Filled.LightMode),
+                        Triple(2, "Modo Oscuro", Icons.Filled.DarkMode)
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        opcionesTema.forEach { (codigo, titulo, icono) ->
+                            val esSeleccionado = estado.modoTema == codigo
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (esSeleccionado) AzulPrimarioClaro.copy(alpha = 0.25f) else FondoClaro)
+                                    .border(1.dp, if (esSeleccionado) AzulPrimario else GrisClaro, RoundedCornerShape(10.dp))
+                                    .clickable { viewModel.onModoTemaCambiado(codigo) }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = icono,
+                                            contentDescription = null,
+                                            tint = if (esSeleccionado) AzulPrimario else GrisSecundario,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = titulo,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (esSeleccionado) FontWeight.Bold else FontWeight.Medium,
+                                            color = GrisTexto
+                                        )
+                                    }
+
+                                    if (esSeleccionado) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Check,
+                                            contentDescription = "Seleccionado",
+                                            tint = AzulPrimario,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Sección 5: Actualizaciones y Versión
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Blanco),

@@ -251,10 +251,15 @@ fun PantallaHistorialVentas(
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = GrisTexto,
+                            unfocusedTextColor = GrisTexto,
+                            focusedPlaceholderColor = GrisMedio,
+                            unfocusedPlaceholderColor = GrisMedio,
                             focusedBorderColor = AzulPrimario,
                             unfocusedBorderColor = GrisClaro,
                             focusedContainerColor = FondoClaro,
-                            unfocusedContainerColor = FondoClaro
+                            unfocusedContainerColor = FondoClaro,
+                            cursorColor = AzulPrimario
                         )
                     )
 

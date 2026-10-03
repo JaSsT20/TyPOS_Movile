@@ -173,8 +173,15 @@ fun PantallaFormularioProducto(
                             imeAction = ImeAction.Next
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = GrisTexto,
+                            unfocusedTextColor = GrisTexto,
+                            focusedContainerColor = Blanco,
+                            unfocusedContainerColor = Blanco,
                             focusedBorderColor = AzulPrimario,
-                            unfocusedBorderColor = GrisMedio
+                            unfocusedBorderColor = GrisMedio,
+                            focusedLabelColor = AzulPrimario,
+                            unfocusedLabelColor = GrisSecundario,
+                            cursorColor = AzulPrimario
                         )
                     )
 

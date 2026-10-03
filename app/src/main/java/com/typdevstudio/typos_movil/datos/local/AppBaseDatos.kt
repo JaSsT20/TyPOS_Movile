@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.typdevstudio.typos_movil.datos.local.daos.ConfiguracionNegocioDao
 import com.typdevstudio.typos_movil.datos.local.daos.ProductoDao
@@ -18,6 +19,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+val MIGRACION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN modo_tema INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Database(
     entities = [
         UsuarioEntidad::class,
@@ -26,7 +33,7 @@ import kotlinx.coroutines.launch
         DetalleVentaEntidad::class,
         ConfiguracionNegocioEntidad::class
     ],
-    version = 5, // Versión 5: Campo itbis_incluido en ProductoEntidad
+    version = 6, // Versión 6: Campo modo_tema en ConfiguracionNegocioEntidad
     exportSchema = false
 )
 abstract class AppBaseDatos : RoomDatabase() {
@@ -47,6 +54,7 @@ abstract class AppBaseDatos : RoomDatabase() {
                     AppBaseDatos::class.java,
                     "typos_movil_bd.db"
                 )
+                    .addMigrations(MIGRACION_5_6)
                     .addCallback(CallbackInicial(contexto))
                     .fallbackToDestructiveMigration()
                     .build()

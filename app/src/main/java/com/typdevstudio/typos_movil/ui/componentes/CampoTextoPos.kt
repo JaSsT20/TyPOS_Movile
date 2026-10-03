@@ -27,8 +27,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
+import com.typdevstudio.typos_movil.ui.theme.Blanco
 import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
+import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
 import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 
@@ -81,11 +83,19 @@ fun CampoTextoPos(
             keyboardOptions = opcionesTeclado,
             keyboardActions = accionesTeclado,
             colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = GrisTexto,
+                unfocusedTextColor = GrisTexto,
+                focusedContainerColor = Blanco,
+                unfocusedContainerColor = Blanco,
                 focusedBorderColor = AzulPrimario,
                 unfocusedBorderColor = GrisMedio,
                 errorBorderColor = RojoError,
                 focusedLabelColor = AzulPrimario,
-                errorLabelColor = RojoError
+                unfocusedLabelColor = GrisSecundario,
+                errorLabelColor = RojoError,
+                cursorColor = AzulPrimario,
+                focusedPlaceholderColor = GrisMedio,
+                unfocusedPlaceholderColor = GrisMedio
             )
         )
 

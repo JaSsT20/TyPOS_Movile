@@ -43,10 +43,17 @@ private val EsquemaColorClaro = lightColorScheme(
 
 @Composable
 fun TyPOS_MovilTheme(
-    temaOscuro: Boolean = isSystemInDarkTheme(),
+    modoTema: Int = 0, // 0: Seguir el Sistema, 1: Modo Claro, 2: Modo Oscuro
     contenido: @Composable () -> Unit
 ) {
-    val esquemaColor = if (temaOscuro) EsquemaColorOscuro else EsquemaColorClaro
+    val sistemaEsOscuro = isSystemInDarkTheme()
+    val usarOscuro = when (modoTema) {
+        1 -> false // Forzar modo Claro
+        2 -> true  // Forzar modo Oscuro
+        else -> sistemaEsOscuro // Seguir el sistema operativo
+    }
+
+    val esquemaColor = if (usarOscuro) EsquemaColorOscuro else EsquemaColorClaro
 
     MaterialTheme(
         colorScheme = esquemaColor,

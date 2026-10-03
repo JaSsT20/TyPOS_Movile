@@ -27,6 +27,7 @@ data class ConfiguracionUiState(
     val tamanoPapel: Int = 58, // 58, 80, 57, 72 o 0 (Personalizado)
     val anchoMilimetrosPersonalizado: String = "58",
     val columnasPersonalizadas: Int = 32,
+    val modoTema: Int = 0, // 0: Sistema, 1: Claro, 2: Oscuro
     val dispositivosDisponibles: List<DispositivoBluetoothPos> = emptyList(),
     val estaGuardando: Boolean = false,
     val estaImprimiendoPrueba: Boolean = false,
@@ -65,7 +66,8 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                     direccionMacImpresora = config.direccionMacImpresora,
                     tamanoPapel = config.tamanoPapelImpresora,
                     anchoMilimetrosPersonalizado = mmTexto,
-                    columnasPersonalizadas = config.columnasPersonalizadas
+                    columnasPersonalizadas = config.columnasPersonalizadas,
+                    modoTema = config.modoTema
                 )
             }
             buscarDispositivosBluetooth()
@@ -169,6 +171,10 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun onModoTemaCambiado(modo: Int) {
+        _uiState.update { it.copy(modoTema = modo) }
+    }
+
     fun guardarConfiguracion() {
         val estado = _uiState.value
         val nombreNegocioTrim = estado.nombreNegocio.trim().ifEmpty { "Mi Tienda" }
@@ -188,7 +194,8 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                     nombreImpresora = estado.nombreImpresora,
                     direccionMacImpresora = estado.direccionMacImpresora,
                     tamanoPapelImpresora = mmInt,
-                    columnasPersonalizadas = estado.columnasPersonalizadas
+                    columnasPersonalizadas = estado.columnasPersonalizadas,
+                    modoTema = estado.modoTema
                 )
 
                 repositorio.guardarConfiguracion(entidad)

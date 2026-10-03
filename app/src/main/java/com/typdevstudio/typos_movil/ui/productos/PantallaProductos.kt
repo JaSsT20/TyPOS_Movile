@@ -215,10 +215,15 @@ fun PantallaProductos(
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = GrisTexto,
+                        unfocusedTextColor = GrisTexto,
+                        focusedPlaceholderColor = GrisMedio,
+                        unfocusedPlaceholderColor = GrisMedio,
                         focusedBorderColor = AzulPrimario,
                         unfocusedBorderColor = GrisClaro,
                         focusedContainerColor = FondoClaro,
-                        unfocusedContainerColor = FondoClaro
+                        unfocusedContainerColor = FondoClaro,
+                        cursorColor = AzulPrimario
                     )
                 )
 
