@@ -30,9 +30,9 @@ object CifradorTokensUsuario {
     )
 
     private const val CONSTANTE_MAGICA = 0x55L
-    private const val FECHA_BASE_EPOCH_MS = 1767225600000L // 2026-01-01 UTC
+    // Epoch base: 2025-01-01 00:00:00 UTC
+    private const val FECHA_BASE_EPOCH_MS = 1735689600000L
     private const val MS_POR_DIA = 86400000L
-    private const val MS_POR_HORA = 3600000L
 
     /**
      * Valida y descifra un token corto de activación de usuario.
@@ -95,9 +95,9 @@ object CifradorTokensUsuario {
 
             val usernameBytes = bytes.copyOfRange(0, 8)
             val username = String(usernameBytes, Charsets.US_ASCII).trimEnd { it == '\u0000' || it == ' ' }
-            val rolByte = bytes[8].toInt() and 0xFF
-            val horasValidez = bytes[9].toInt() and 0xFF
-            val epochDaysByte = bytes[10].toInt() and 0xFF
+            val byteRolVigencia = bytes[8].toInt() and 0xFF
+            val byteEpochHi = bytes[9].toInt() and 0xFF
+            val byteEpochLo = bytes[10].toInt() and 0xFF
             val checksumLeido = bytes[11].toInt() and 0xFF
 
             val checksumEsperado = calcularChecksum(v0, v1, bytes[8], bytes[9], bytes[10])
@@ -108,12 +108,31 @@ object CifradorTokensUsuario {
                 )
             }
 
-            val rol = if (rolByte == 1) "ADMINISTRADOR" else "CAJERO"
-            val fechaEmisionMs = FECHA_BASE_EPOCH_MS + (epochDaysByte * MS_POR_DIA)
+            val rolVal = (byteRolVigencia ushr 4) and 0x0F
+            val vigenciaPreset = byteRolVigencia and 0x0F
+            val epochDays = ((byteEpochHi shl 8) or byteEpochLo).toLong()
+
+            val rol = if (rolVal == 1) "ADMINISTRADOR" else "CAJERO"
+            val fechaEmisionMs = FECHA_BASE_EPOCH_MS + (epochDays * MS_POR_DIA)
+
+            val horasValidez = when (vigenciaPreset) {
+                1 -> 24
+                2 -> 48
+                3 -> 24 * 7
+                4 -> 24 * 30
+                else -> 0
+            }
 
             var estaExpirado = false
-            if (horasValidez > 0) {
-                val fechaExpiracionMs = fechaEmisionMs + (horasValidez.toLong() * MS_POR_HOUR_SAFE)
+            if (vigenciaPreset > 0) {
+                val diasValidez = when (vigenciaPreset) {
+                    1 -> 2L   // 24 horas -> 2 días de validez segura contra diferencia horaria
+                    2 -> 3L   // 48 horas -> 3 días
+                    3 -> 8L   // 7 días -> 8 días
+                    4 -> 31L  // 30 días -> 31 días
+                    else -> 0L
+                }
+                val fechaExpiracionMs = fechaEmisionMs + (diasValidez * MS_POR_DIA)
                 if (fechaActualMs > fechaExpiracionMs) {
                     estaExpirado = true
                 }
@@ -133,10 +152,8 @@ object CifradorTokensUsuario {
         }
     }
 
-    private const val MS_POR_HOUR_SAFE = 3600000L
-
     private fun calcularChecksum(v0: Long, v1: Long, b8: Byte, b9: Byte, b10: Byte): Int {
-        var hash = (v0 xor v1 xor (b8.toLong() shl 16) xor (b9.toLong() shl 8) xor b10.toLong()) xor CONSTANTE_MAGICA
+        var hash = (v0 xor v1 xor ((b8.toLong() and 0xFFL) shl 16) xor ((b9.toLong() and 0xFFL) shl 8) xor (b10.toLong() and 0xFFL)) xor CONSTANTE_MAGICA
         hash = (hash xor (hash ushr 16) xor (hash ushr 8)) and 0xFFL
         return hash.toInt()
     }
