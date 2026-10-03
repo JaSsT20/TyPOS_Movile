@@ -1,6 +1,7 @@
 package com.typdevstudio.typos_movil.ui.login
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 data class LoginUiState(
     val usuario: String = "",
     val clave: String = "",
+    val recordar: Boolean = false,
     val errorUsuario: String? = null,
     val errorClave: String? = null,
     val mensajeErrorGeneral: String? = null,
@@ -28,14 +30,31 @@ data class LoginUiState(
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     val repositorio: UsuarioRepositorio
+    private val prefs = application.getSharedPreferences("typos_credenciales_pref", Context.MODE_PRIVATE)
+
+    private val _uiState = MutableStateFlow(LoginUiState())
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     init {
         val baseDatos = AppBaseDatos.obtenerBaseDatos(application)
         repositorio = UsuarioRepositorio(baseDatos.usuarioDao())
+        cargarCredencialesGuardadas()
     }
 
-    private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+    private fun cargarCredencialesGuardadas() {
+        val recordarGuardado = prefs.getBoolean("recordar", false)
+        if (recordarGuardado) {
+            val usuarioGuardado = prefs.getString("usuario", "") ?: ""
+            val claveGuardada = prefs.getString("clave", "") ?: ""
+            _uiState.update {
+                it.copy(
+                    usuario = usuarioGuardado,
+                    clave = claveGuardada,
+                    recordar = true
+                )
+            }
+        }
+    }
 
     fun onUsuarioCambiado(nuevoUsuario: String) {
         _uiState.update {
@@ -56,6 +75,19 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 mensajeErrorGeneral = null,
                 mensajeExito = null
             )
+        }
+    }
+
+    fun onRecordarCambiado(nuevoRecordar: Boolean) {
+        _uiState.update {
+            it.copy(recordar = nuevoRecordar)
+        }
+        if (!nuevoRecordar) {
+            prefs.edit()
+                .putBoolean("recordar", false)
+                .remove("usuario")
+                .remove("clave")
+                .apply()
         }
     }
 
@@ -107,6 +139,20 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             val resultado = repositorio.autenticar(usuarioTrim, claveTrim)
             when (resultado) {
                 is ResultadoAutenticacion.Exito -> {
+                    if (estadoActual.recordar) {
+                        prefs.edit()
+                            .putBoolean("recordar", true)
+                            .putString("usuario", usuarioTrim)
+                            .putString("clave", claveTrim)
+                            .apply()
+                    } else {
+                        prefs.edit()
+                            .putBoolean("recordar", false)
+                            .remove("usuario")
+                            .remove("clave")
+                            .apply()
+                    }
+
                     GestorSesion.iniciarSesion(resultado.usuario)
                     _uiState.update {
                         it.copy(
@@ -128,6 +174,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun reiniciarEstado() {
-        _uiState.value = LoginUiState()
+        val recordarGuardado = prefs.getBoolean("recordar", false)
+        if (recordarGuardado) {
+            _uiState.value = LoginUiState(
+                usuario = prefs.getString("usuario", "") ?: "",
+                clave = prefs.getString("clave", "") ?: "",
+                recordar = true
+            )
+        } else {
+            _uiState.value = LoginUiState()
+        }
     }
 }

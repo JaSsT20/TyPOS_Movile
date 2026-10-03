@@ -1,6 +1,7 @@
 package com.typdevstudio.typos_movil.ui.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,8 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PointOfSale
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -205,8 +208,37 @@ fun PantallaLogin(
                         )
                     )
 
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Opción para Recordar credenciales
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !estado.estaCargando) {
+                                viewModel.onRecordarCambiado(!estado.recordar)
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = estado.recordar,
+                            onCheckedChange = { viewModel.onRecordarCambiado(it) },
+                            enabled = !estado.estaCargando,
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = AzulPrimario,
+                                checkmarkColor = Blanco
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Recordar",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
                     if (estado.mensajeErrorGeneral != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -224,7 +256,7 @@ fun PantallaLogin(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Botón de Ingresar
                     BotonPos(
