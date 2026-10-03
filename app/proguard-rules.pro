@@ -1,29 +1,50 @@
-# Reglas de optimización y preservación ProGuard/R8 para TyPOS Móvil
+# ==============================================================================
+# REGLAS PROGUARD / R8 PARA TYPOS MÓVIL
+# ==============================================================================
 
-# Preservar información de líneas para informes de errores
--keepattributes SourceFile,LineNumberTable
+# Preservar anotaciones, firmas genéricas y líneas de depuración
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable
+
+# --- PRESERVAR CÓDIGO COMPLETO DE LA APLICACIÓN ---
+# Protege todas las clases, ViewModels, Repositorios, Entidades y Room DAOs de la app
+-keep class com.typdevstudio.typos_movil.** { *; }
+-keep interface com.typdevstudio.typos_movil.** { *; }
+-keepenum class com.typdevstudio.typos_movil.** { *; }
 
 # --- ROOM DATABASE ---
--keep class androidx.room.RoomDatabase
--dontwarn androidx.room.paging.**
--keep class * extends androidx.room.RoomDatabase
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+-keep class * extends androidx.room.RoomDatabase {
+    <init>(...);
+    *;
+}
 -keep @androidx.room.Entity class * { *; }
 -keep @androidx.room.Dao interface * { *; }
--keep class com.typdevstudio.typos_movil.datos.local.entidades.** { *; }
--keep class com.typdevstudio.typos_movil.datos.local.relaciones.** { *; }
--keep class com.typdevstudio.typos_movil.datos.local.daos.** { *; }
+-keep class * extends androidx.room.migration.Migration { *; }
 
-# --- MODELOS DE DATOS, REPOSITORIOS Y UTILIDADES ---
--keep class com.typdevstudio.typos_movil.utilidades.actualizador.** { *; }
--keep class com.typdevstudio.typos_movil.utilidades.licencia.** { *; }
--keep class com.typdevstudio.typos_movil.datos.repositorio.** { *; }
--keep class com.typdevstudio.typos_movil.ui.ventas.ItemCarrito { *; }
+# --- JETPACK LIFECYCLE & VIEWMODELS ---
+# Evita que R8 elimine o modifique constructores de ViewModels requeridos por Compose
+-keep class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+    *;
+}
+-keep class * extends androidx.lifecycle.AndroidViewModel {
+    <init>(...);
+    *;
+}
+-keep class androidx.lifecycle.ViewModelProvider$Factory { *; }
 
-# --- ML KIT Y CAMERAX ---
--keep class com.google.mlkit.vision.barcode.** { *; }
--dontwarn com.google.mlkit.**
--dontwarn androidx.camera.**
+# --- JETPACK COMPOSE ---
+-keep class androidx.compose.runtime.** { *; }
+-keep class androidx.compose.ui.** { *; }
 
-# --- COROUTINES Y KOTLIN ---
+# --- COROUTINES & KOTLIN ---
+-keepclassmembers class kotlinx.coroutines.** { *; }
 -dontwarn kotlinx.coroutines.**
 -dontwarn java.lang.invoke.**
+
+# --- ML KIT Y CAMERAX ---
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+-keep class androidx.camera.** { *; }
+-dontwarn androidx.camera.**
