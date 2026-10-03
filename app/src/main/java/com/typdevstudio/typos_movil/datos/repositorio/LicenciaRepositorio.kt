@@ -10,8 +10,17 @@ import kotlinx.coroutines.withContext
 
 sealed class EstadoLicencia {
     data object SinLicencia : EstadoLicencia()
-    data class Activa(val diasRestantes: Int, val fechaVencimiento: Long, val clave: String) : EstadoLicencia()
-    data class Vencida(val fechaVencimiento: Long, val clave: String) : EstadoLicencia()
+    data class Activa(
+        val diasRestantes: Int,
+        val fechaVencimiento: Long,
+        val fechaActivacion: Long = 0L,
+        val clave: String
+    ) : EstadoLicencia()
+    data class Vencida(
+        val fechaVencimiento: Long,
+        val fechaActivacion: Long = 0L,
+        val clave: String
+    ) : EstadoLicencia()
     data class RelojAlterado(val ultimaFechaUso: Long) : EstadoLicencia()
 }
 
@@ -35,7 +44,11 @@ class LicenciaRepositorio(private val licenciaDao: LicenciaDao) {
             if (licencia.estado != "VENCIDA") {
                 licenciaDao.guardarLicencia(licencia.copy(estado = "VENCIDA", ultimaFechaUso = ahora))
             }
-            return@withContext EstadoLicencia.Vencida(licencia.fechaVencimiento, licencia.claveLicencia)
+            return@withContext EstadoLicencia.Vencida(
+                fechaVencimiento = licencia.fechaVencimiento,
+                fechaActivacion = licencia.fechaActivacion,
+                clave = licencia.claveLicencia
+            )
         }
 
         // Actualizar última fecha de uso legítimo
@@ -44,6 +57,7 @@ class LicenciaRepositorio(private val licenciaDao: LicenciaDao) {
         EstadoLicencia.Activa(
             diasRestantes = info.diasRestantes,
             fechaVencimiento = licencia.fechaVencimiento,
+            fechaActivacion = licencia.fechaActivacion,
             clave = licencia.claveLicencia
         )
     }
