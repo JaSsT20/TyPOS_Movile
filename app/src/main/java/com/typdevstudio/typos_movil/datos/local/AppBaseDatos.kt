@@ -102,17 +102,6 @@ abstract class AppBaseDatos : RoomDatabase() {
         private fun sembrarDatosIniciales() {
             CoroutineScope(Dispatchers.IO).launch {
                 val baseDatos = obtenerBaseDatos(contexto)
-                // Usuario administrador inicial de fábrica
-                baseDatos.usuarioDao().insertar(
-                    UsuarioEntidad(
-                        nombreCompleto = "Administrador",
-                        nombreUsuario = "admin",
-                        clave = "admin",
-                        rol = "ADMINISTRADOR",
-                        estaActivo = true
-                    )
-                )
-
                 // Configuración inicial del negocio
                 baseDatos.configuracionNegocioDao().guardarConfiguracion(
                     ConfiguracionNegocioEntidad(
