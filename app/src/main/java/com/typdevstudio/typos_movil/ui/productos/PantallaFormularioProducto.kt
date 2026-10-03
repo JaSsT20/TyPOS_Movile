@@ -118,7 +118,7 @@ fun PantallaFormularioProducto(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AzulPrimario)
             )
         },
-        containerColor = FondoClaro
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
         Column(
             modifier = Modifier
@@ -131,7 +131,7 @@ fun PantallaFormularioProducto(
             // Tarjeta de Datos del Producto
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Blanco),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -173,14 +173,14 @@ fun PantallaFormularioProducto(
                             imeAction = ImeAction.Next
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = GrisTexto,
-                            unfocusedTextColor = GrisTexto,
-                            focusedContainerColor = Blanco,
-                            unfocusedContainerColor = Blanco,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                             focusedBorderColor = AzulPrimario,
-                            unfocusedBorderColor = GrisMedio,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
                             focusedLabelColor = AzulPrimario,
-                            unfocusedLabelColor = GrisSecundario,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             cursorColor = AzulPrimario
                         )
                     )
@@ -227,7 +227,7 @@ fun PantallaFormularioProducto(
             // Tarjeta de Precios e Inventario
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Blanco),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -281,10 +281,10 @@ fun PantallaFormularioProducto(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (estado.itbisIncluido && !estado.exentoItbis) AzulPrimarioClaro.copy(alpha = 0.25f) else FondoClaro)
+                            .background(if (estado.itbisIncluido && !estado.exentoItbis) AzulPrimarioClaro.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 1.dp,
-                                color = if (estado.itbisIncluido && !estado.exentoItbis) AzulPrimario.copy(alpha = 0.4f) else GrisClaro,
+                                color = if (estado.itbisIncluido && !estado.exentoItbis) AzulPrimario.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable {
@@ -304,7 +304,7 @@ fun PantallaFormularioProducto(
                                     text = "Precio con ITBIS incluido (18%)",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (estado.itbisIncluido && !estado.exentoItbis) AzulPrimario else GrisTexto
+                                    color = if (estado.itbisIncluido && !estado.exentoItbis) AzulPrimario else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = if (estado.exentoItbis) {
@@ -315,7 +315,7 @@ fun PantallaFormularioProducto(
                                         "El 18% de ITBIS se sumará adicionalmente al cobrar"
                                     },
                                     fontSize = 11.sp,
-                                    color = GrisSecundario
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Switch(
@@ -346,10 +346,10 @@ fun PantallaFormularioProducto(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (estado.exentoItbis) AzulPrimarioClaro.copy(alpha = 0.25f) else FondoClaro)
+                            .background(if (estado.exentoItbis) AzulPrimarioClaro.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 1.dp,
-                                color = if (estado.exentoItbis) AzulPrimario.copy(alpha = 0.4f) else GrisClaro,
+                                color = if (estado.exentoItbis) AzulPrimario.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { viewModel.onExentoItbisCambiado(!estado.exentoItbis) }
@@ -365,12 +365,12 @@ fun PantallaFormularioProducto(
                                     text = "Producto Exento de ITBIS (0%)",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = if (estado.exentoItbis) AzulPrimario else GrisTexto
+                                    color = if (estado.exentoItbis) AzulPrimario else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Activar para alimentos básicos o medicamentos sin impuesto",
                                     fontSize = 11.sp,
-                                    color = GrisSecundario
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Switch(

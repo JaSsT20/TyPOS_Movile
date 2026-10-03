@@ -99,7 +99,7 @@ fun DialogoCobro(
                 .fillMaxWidth()
                 .padding(16.dp),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
@@ -122,7 +122,7 @@ fun DialogoCobro(
                         color = AzulPrimario
                     )
                     IconButton(onClick = alDescartar) {
-                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Cerrar", tint = GrisMedio)
+                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
@@ -131,7 +131,7 @@ fun DialogoCobro(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(AzulPrimarioClaro.copy(alpha = 0.3f))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
                         .padding(14.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -139,15 +139,15 @@ fun DialogoCobro(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Subtotal Neto:", fontSize = 13.sp, color = GrisTexto)
-                            Text("$${String.format("%.2f", subtotal)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                            Text("Subtotal Neto:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("$${String.format("%.2f", subtotal)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("ITBIS (18%):", fontSize = 13.sp, color = GrisTexto)
-                            Text("$${String.format("%.2f", itbis)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                            Text("ITBIS (18%):", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text("$${String.format("%.2f", itbis)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(
@@ -166,7 +166,7 @@ fun DialogoCobro(
                     text = "Método de Pago",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Row(
@@ -180,10 +180,10 @@ fun DialogoCobro(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (seleccionado) AzulPrimario else FondoClaro)
+                                .background(if (seleccionado) AzulPrimario else MaterialTheme.colorScheme.surfaceVariant)
                                 .border(
                                     width = 1.dp,
-                                    color = if (seleccionado) AzulPrimario else GrisClaro,
+                                    color = if (seleccionado) AzulPrimario else MaterialTheme.colorScheme.outlineVariant,
                                     shape = RoundedCornerShape(10.dp)
                                 )
                                 .clickable { viewModel.onMetodoPagoCambiado(metodo) }
@@ -194,7 +194,7 @@ fun DialogoCobro(
                                 text = metodo,
                                 fontSize = 13.sp,
                                 fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Medium,
-                                color = if (seleccionado) Blanco else GrisTexto
+                                color = if (seleccionado) Blanco else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -223,7 +223,7 @@ fun DialogoCobro(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .background(GrisClaro.copy(alpha = 0.6f))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
                                             .clickable { viewModel.onMontoRecibidoCambiado(montoBoton.toInt().toString()) }
                                             .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
@@ -231,7 +231,7 @@ fun DialogoCobro(
                                             text = if (montoBoton == total) "Exacto ($${String.format("%.2f", total)})" else "$$montoBoton",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = GrisTexto
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }

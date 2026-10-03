@@ -28,6 +28,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,7 +50,6 @@ import androidx.compose.ui.window.DialogProperties
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
 import com.typdevstudio.typos_movil.ui.theme.GrisTexto
@@ -91,7 +91,7 @@ fun DialogoActualizacion(
     ) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -122,7 +122,7 @@ fun DialogoActualizacion(
                     text = if (progreso.estaDescargando) "Descargando Actualización..." else "¡Nueva Versión Disponible!",
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
@@ -141,7 +141,7 @@ fun DialogoActualizacion(
                         Text(
                             text = "Actual: v${info.versionActual}",
                             fontSize = 12.sp,
-                            color = GrisSecundario,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -167,7 +167,7 @@ fun DialogoActualizacion(
                     Text(
                         text = "Tamaño aprox: ${String.format("%.1f", info.tamanoMb)} MB",
                         fontSize = 11.sp,
-                        color = GrisSecundario
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -179,7 +179,7 @@ fun DialogoActualizacion(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(FondoClaro)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -218,7 +218,7 @@ fun DialogoActualizacion(
                             text = textoProgreso,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (progreso.completado) VerdeExito else GrisTexto
+                            color = if (progreso.completado) VerdeExito else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 } else if (progreso.error != null) {
@@ -250,7 +250,7 @@ fun DialogoActualizacion(
                         Text(
                             text = progreso.error ?: "Error desconocido",
                             fontSize = 11.sp,
-                            color = GrisTexto,
+                            color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -260,7 +260,7 @@ fun DialogoActualizacion(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(FondoClaro)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(12.dp)
                     ) {
                         Row(
@@ -277,7 +277,7 @@ fun DialogoActualizacion(
                                 text = "Novedades y mejoras:",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GrisTexto
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
 
@@ -293,7 +293,7 @@ fun DialogoActualizacion(
                             Text(
                                 text = info.notasCambio.ifBlank { "Mejoras generales de rendimiento, corrección de errores y nuevas funcionalidades." },
                                 fontSize = 12.sp,
-                                color = GrisTexto,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 18.sp
                             )
                         }
@@ -307,7 +307,7 @@ fun DialogoActualizacion(
                     Text(
                         text = "Por favor espera mientras se descarga el paquete de actualización...",
                         fontSize = 11.sp,
-                        color = GrisSecundario,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                 } else if (progreso.error != null) {
@@ -339,7 +339,7 @@ fun DialogoActualizacion(
                             text = "Cancelar",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = GrisSecundario
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
@@ -367,7 +367,7 @@ fun DialogoActualizacion(
                             text = "Recordar más tarde",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = GrisSecundario
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

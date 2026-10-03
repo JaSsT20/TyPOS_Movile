@@ -79,7 +79,7 @@ fun PantallaLogin(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(FondoClaro)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -117,7 +117,7 @@ fun PantallaLogin(
             Text(
                 text = "Punto de Venta e Inventario",
                 fontSize = 14.sp,
-                color = GrisSecundario
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -125,7 +125,7 @@ fun PantallaLogin(
             // Tarjeta de formulario de acceso
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Blanco),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -138,7 +138,7 @@ fun PantallaLogin(
                         text = "Iniciar Sesión",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = GrisTexto
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Spacer(modifier = Modifier.height(18.dp))

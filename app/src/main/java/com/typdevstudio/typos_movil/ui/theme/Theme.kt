@@ -8,20 +8,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val EsquemaColorOscuro = darkColorScheme(
-    primary = AzulPrimarioDark,
-    onPrimary = Color.Black,
-    primaryContainer = AzulPrimarioOscuro,
+    primary = AzulPrimario,
+    onPrimary = Blanco,
+    primaryContainer = Color(0xFF1565C0),
     onPrimaryContainer = AzulPrimarioClaro,
     secondary = GrisSecundarioDark,
-    onSecondary = Color.Black,
+    onSecondary = Blanco,
     tertiary = CelesteInformacionDark,
-    onTertiary = Color.Black,
-    background = FondoOscuro,
+    onTertiary = Blanco,
+    background = Color(0xFF121212),
     onBackground = Blanco,
-    surface = SuperficieOscura,
+    surface = Color(0xFF1E1E1E),
     onSurface = Blanco,
+    surfaceVariant = Color(0xFF2A2A2A),
+    onSurfaceVariant = Color(0xFFB0BEC5),
+    outline = Color(0xFF546E7A),
+    outlineVariant = Color(0xFF333333),
     error = RojoErrorDark,
-    onError = Color.Black
+    onError = Blanco
 )
 
 private val EsquemaColorClaro = lightColorScheme(
@@ -37,6 +41,10 @@ private val EsquemaColorClaro = lightColorScheme(
     onBackground = GrisTexto,
     surface = SuperficieClara,
     onSurface = GrisTexto,
+    surfaceVariant = Color(0xFFECEFF1),
+    onSurfaceVariant = GrisSecundario,
+    outline = GrisMedio,
+    outlineVariant = GrisClaro,
     error = RojoError,
     onError = Blanco
 )

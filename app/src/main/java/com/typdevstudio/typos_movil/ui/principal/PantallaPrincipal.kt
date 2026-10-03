@@ -126,7 +126,7 @@ fun PantallaPrincipal(
                 )
             )
         },
-        containerColor = FondoClaro
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
         Column(
             modifier = Modifier
@@ -139,7 +139,7 @@ fun PantallaPrincipal(
             // Tarjeta de Bienvenida
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Blanco),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -168,12 +168,12 @@ fun PantallaPrincipal(
                             text = "¡Hola, ${usuarioActivo?.nombreCompleto ?: "Usuario"}!",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = GrisTexto
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Selecciona una opción para comenzar a operar.",
                             fontSize = 13.sp,
-                            color = GrisSecundario
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -184,7 +184,7 @@ fun PantallaPrincipal(
                 text = "Módulos de Trabajo",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = GrisTexto,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp)
             )
 
@@ -234,7 +234,7 @@ fun TarjetaModuloPos(
     Card(
         onClick = alHacerClic,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -263,12 +263,12 @@ fun TarjetaModuloPos(
                     text = titulo,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = GrisTexto
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = descripcion,
                     fontSize = 12.sp,
-                    color = GrisSecundario
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

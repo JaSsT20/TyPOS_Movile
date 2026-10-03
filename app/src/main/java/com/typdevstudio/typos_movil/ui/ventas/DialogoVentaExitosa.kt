@@ -50,7 +50,7 @@ fun DialogoVentaExitosa(
     Dialog(onDismissRequest = alCerrar) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
@@ -80,7 +80,7 @@ fun DialogoVentaExitosa(
                     text = "¡Venta Completada!",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
@@ -95,7 +95,7 @@ fun DialogoVentaExitosa(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(GrisClaro.copy(alpha = 0.5f))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(14.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -103,15 +103,15 @@ fun DialogoVentaExitosa(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Total:", fontSize = 14.sp, color = GrisSecundario)
-                            Text("$${String.format("%.2f", venta.total)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GrisTexto)
+                            Text("Total:", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("$${String.format("%.2f", venta.total)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Método de Pago:", fontSize = 14.sp, color = GrisSecundario)
-                            Text(venta.metodoPago, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                            Text("Método de Pago:", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(venta.metodoPago, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         if (venta.montoDevuelto > 0) {
                             Row(

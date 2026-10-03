@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -59,7 +60,7 @@ fun PrevisualizacionTicket(
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -89,12 +90,12 @@ fun PrevisualizacionTicket(
                             text = "Vista Previa de la Factura",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = AzulPrimario
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = "Formato simulado: $anchoCols columnas (${if (tamanoPapel == 0) "Personalizado" else "${tamanoPapel}mm"})",
                             fontSize = 12.sp,
-                            color = GrisSecundario
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

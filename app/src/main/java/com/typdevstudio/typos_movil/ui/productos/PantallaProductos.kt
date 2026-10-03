@@ -164,7 +164,7 @@ fun PantallaProductos(
                 )
             }
         },
-        containerColor = FondoClaro
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
         Column(
             modifier = Modifier
@@ -175,7 +175,7 @@ fun PantallaProductos(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Blanco)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -199,7 +199,7 @@ fun PantallaProductos(
                                     Icon(
                                         imageVector = Icons.Filled.Clear,
                                         contentDescription = "Limpiar búsqueda",
-                                        tint = GrisMedio
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -215,14 +215,14 @@ fun PantallaProductos(
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = GrisTexto,
-                        unfocusedTextColor = GrisTexto,
-                        focusedPlaceholderColor = GrisMedio,
-                        unfocusedPlaceholderColor = GrisMedio,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         focusedBorderColor = AzulPrimario,
-                        unfocusedBorderColor = GrisClaro,
-                        focusedContainerColor = FondoClaro,
-                        unfocusedContainerColor = FondoClaro,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
                         cursorColor = AzulPrimario
                     )
                 )
@@ -248,13 +248,13 @@ fun PantallaProductos(
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = AzulPrimario,
                                     selectedLabelColor = Blanco,
-                                    containerColor = FondoClaro,
-                                    labelColor = GrisTexto
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
                                 ),
                                 border = FilterChipDefaults.filterChipBorder(
                                     enabled = true,
                                     selected = estaSeleccionada,
-                                    borderColor = if (estaSeleccionada) AzulPrimario else GrisClaro
+                                    borderColor = if (estaSeleccionada) AzulPrimario else MaterialTheme.colorScheme.outlineVariant
                                 )
                             )
                         }
@@ -282,15 +282,15 @@ fun PantallaProductos(
                             },
                             shape = RoundedCornerShape(8.dp),
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = GrisTexto,
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Blanco,
-                                containerColor = Blanco,
-                                labelColor = GrisSecundario
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurface
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = seleccionado,
-                                borderColor = if (seleccionado) GrisTexto else GrisClaro
+                                borderColor = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
                             )
                         )
                     }
@@ -386,7 +386,7 @@ fun TarjetaProductoModerna(
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -423,7 +423,7 @@ fun TarjetaProductoModerna(
                     text = producto.nombre,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
 

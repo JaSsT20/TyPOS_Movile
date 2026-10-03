@@ -147,7 +147,7 @@ fun DialogoActivarUsuario(
     ) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -178,13 +178,13 @@ fun DialogoActivarUsuario(
                     text = "Activar Nuevo Usuario",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
                     text = "Ingresa el código de invitación generado por el administrador para habilitar tu cuenta.",
                     fontSize = 12.sp,
-                    color = GrisSecundario,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
@@ -264,14 +264,14 @@ fun DialogoActivarUsuario(
                             text = "Usuario asignado: @${token.nombreUsuario}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = GrisTexto
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         if (token.nombreCompleto.isNotBlank() && token.nombreCompleto != token.nombreUsuario) {
                             Text(
                                 text = "Nombre: ${token.nombreCompleto}",
                                 fontSize = 12.sp,
-                                color = GrisSecundario,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Medium
                             )
                         }

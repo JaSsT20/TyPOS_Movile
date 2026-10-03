@@ -46,6 +46,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -81,7 +82,6 @@ import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
 import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
@@ -175,7 +175,7 @@ fun PantallaHistorialVentas(
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = FondoClaro
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
         Column(
             modifier = Modifier
@@ -185,7 +185,7 @@ fun PantallaHistorialVentas(
             // Tarjeta Superior de Resumen de Ventas
             Card(
                 shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Blanco),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -251,15 +251,15 @@ fun PantallaHistorialVentas(
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = GrisTexto,
-                            unfocusedTextColor = GrisTexto,
-                            focusedPlaceholderColor = GrisMedio,
-                            unfocusedPlaceholderColor = GrisMedio,
-                            focusedBorderColor = AzulPrimario,
-                            unfocusedBorderColor = GrisClaro,
-                            focusedContainerColor = FondoClaro,
-                            unfocusedContainerColor = FondoClaro,
-                            cursorColor = AzulPrimario
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            cursorColor = MaterialTheme.colorScheme.primary
                         )
                     )
 
@@ -278,10 +278,10 @@ fun PantallaHistorialVentas(
                                 label = { Text(filtro.etiqueta, fontSize = 12.sp, fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Normal) },
                                 shape = RoundedCornerShape(8.dp),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = AzulPrimario,
-                                    selectedLabelColor = Blanco,
-                                    containerColor = FondoClaro,
-                                    labelColor = GrisTexto
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
                         }
@@ -303,11 +303,11 @@ fun PantallaHistorialVentas(
                                     selectedContainerColor = when (filtro) {
                                         FiltroEstadoHistorial.COMPLETADAS -> VerdeExito
                                         FiltroEstadoHistorial.CANCELADAS -> RojoError
-                                        FiltroEstadoHistorial.TODAS -> GrisTexto
+                                        FiltroEstadoHistorial.TODAS -> MaterialTheme.colorScheme.primary
                                     },
                                     selectedLabelColor = Blanco,
-                                    containerColor = FondoClaro,
-                                    labelColor = GrisTexto
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
                         }
@@ -337,12 +337,12 @@ fun PantallaHistorialVentas(
                             text = "No se encontraron ventas",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = GrisTexto
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Ajusta los filtros de fecha o búsqueda para ver otros registros",
                             fontSize = 12.sp,
-                            color = GrisSecundario,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -391,7 +391,7 @@ fun TarjetaMetrica(
                 text = titulo,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = GrisSecundario,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
             Text(
@@ -404,7 +404,7 @@ fun TarjetaMetrica(
             Text(
                 text = subtitulo,
                 fontSize = 9.sp,
-                color = GrisMedio,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
         }
@@ -424,11 +424,11 @@ fun TarjetaVentaHistorial(
     Card(
         onClick = alHacerClic,
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = if (esCancelada) RojoError.copy(alpha = 0.3f) else GrisClaro
+            color = if (esCancelada) RojoError.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -456,7 +456,7 @@ fun TarjetaVentaHistorial(
                         text = venta.numeroFactura,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (esCancelada) RojoError else GrisTexto
+                        color = if (esCancelada) RojoError else MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -486,18 +486,18 @@ fun TarjetaVentaHistorial(
                     text = venta.nombreCliente ?: "Consumidor Final",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = GrisTexto,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = fechaTexto,
                     fontSize = 11.sp,
-                    color = GrisSecundario
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            HorizontalDivider(color = GrisClaro.copy(alpha = 0.6f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // Totales, Método de Pago y Cantidad de Artículos
             Row(
@@ -527,7 +527,7 @@ fun TarjetaVentaHistorial(
                     Text(
                         text = "$cantidadTotalArticulos arts.",
                         fontSize = 12.sp,
-                        color = GrisSecundario
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -563,7 +563,7 @@ fun DialogoDetalleVenta(
     ) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             modifier = Modifier
                 .fillMaxWidth(0.94f)
@@ -587,17 +587,17 @@ fun DialogoDetalleVenta(
                             text = "Factura ${venta.numeroFactura}",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = AzulPrimario
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = fechaTexto,
                             fontSize = 12.sp,
-                            color = GrisSecundario
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     IconButton(onClick = alCerrar) {
-                        Icon(imageVector = Icons.Filled.Clear, contentDescription = "Cerrar", tint = GrisTexto)
+                        Icon(imageVector = Icons.Filled.Clear, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
 
@@ -624,12 +624,12 @@ fun DialogoDetalleVenta(
                                 Text(
                                     text = "Motivo: ${venta.motivoAnulacion ?: "Sin motivo especificado"}",
                                     fontSize = 11.sp,
-                                    color = GrisTexto
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "El inventario de estos productos fue restituido al stock.",
                                     fontSize = 10.sp,
-                                    color = GrisSecundario
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -641,27 +641,27 @@ fun DialogoDetalleVenta(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(FondoClaro)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(10.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Cliente:", fontSize = 12.sp, color = GrisSecundario)
-                            Text(text = venta.nombreCliente ?: "Consumidor Final", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                            Text(text = "Cliente:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = venta.nombreCliente ?: "Consumidor Final", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         if (!venta.rncCedulaCliente.isNullOrBlank()) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = "RNC / Cédula:", fontSize = 12.sp, color = GrisSecundario)
-                                Text(text = venta.rncCedulaCliente, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                                Text(text = "RNC / Cédula:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = venta.rncCedulaCliente, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Cajero / Usuario:", fontSize = 12.sp, color = GrisSecundario)
-                            Text(text = venta.usuario ?: "Administrador", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                            Text(text = "Cajero / Usuario:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = venta.usuario ?: "Administrador", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Método de Pago:", fontSize = 12.sp, color = GrisSecundario)
-                            Text(text = venta.metodoPago, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AzulPrimario)
+                            Text(text = "Método de Pago:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = venta.metodoPago, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -670,7 +670,7 @@ fun DialogoDetalleVenta(
                     text = "Artículos Vendidos (${detalles.size})",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AzulPrimario
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 // Lista de Items de la Factura
@@ -678,7 +678,7 @@ fun DialogoDetalleVenta(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(FondoClaro)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(10.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -693,23 +693,23 @@ fun DialogoDetalleVenta(
                                     text = detalle.nombre,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = GrisTexto
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 val cantStr = if (detalle.cantidad % 1.0 == 0.0) detalle.cantidad.toInt().toString() else String.format("%.2f", detalle.cantidad)
                                 Text(
                                     text = "$cantStr x $${String.format("%.2f", detalle.precio)} ${if (detalle.montoItbis > 0) "(ITBIS incl.)" else "(Exento)"}",
                                     fontSize = 11.sp,
-                                    color = GrisSecundario
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Text(
                                 text = "$${String.format("%.2f", detalle.total)}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GrisTexto
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
-                        HorizontalDivider(color = GrisClaro.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
                 }
 
@@ -721,13 +721,13 @@ fun DialogoDetalleVenta(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Subtotal Neto:", fontSize = 13.sp, color = GrisSecundario)
-                        Text(text = "$${String.format("%.2f", venta.subTotalNeto)}", fontSize = 13.sp, color = GrisTexto)
+                        Text(text = "Subtotal Neto:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = "$${String.format("%.2f", venta.subTotalNeto)}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                     }
                     if (venta.montoItbis > 0) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "ITBIS (18%):", fontSize = 13.sp, color = GrisSecundario)
-                            Text(text = "$${String.format("%.2f", venta.montoItbis)}", fontSize = 13.sp, color = AzulPrimario)
+                            Text(text = "ITBIS (18%):", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = "$${String.format("%.2f", venta.montoItbis)}", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     if (venta.descuento > 0) {
@@ -736,18 +736,18 @@ fun DialogoDetalleVenta(
                             Text(text = "-$${String.format("%.2f", venta.descuento)}", fontSize = 13.sp, color = RojoError)
                         }
                     }
-                    HorizontalDivider(color = GrisClaro)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "TOTAL A PAGAR:", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = GrisTexto)
-                        Text(text = "$${String.format("%.2f", venta.total)}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (esCancelada) RojoError else AzulPrimario)
+                        Text(text = "TOTAL A PAGAR:", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = "$${String.format("%.2f", venta.total)}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = if (esCancelada) RojoError else MaterialTheme.colorScheme.primary)
                     }
                     if (venta.metodoPago == "Efectivo") {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Efectivo Recibido:", fontSize = 12.sp, color = GrisSecundario)
-                            Text(text = "$${String.format("%.2f", venta.montoRecibido)}", fontSize = 12.sp, color = GrisTexto)
+                            Text(text = "Efectivo Recibido:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = "$${String.format("%.2f", venta.montoRecibido)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Cambio / Devuelta:", fontSize = 12.sp, color = GrisSecundario)
+                            Text(text = "Cambio / Devuelta:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(text = "$${String.format("%.2f", venta.montoDevuelto)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = VerdeExito)
                         }
                     }
@@ -786,14 +786,14 @@ fun DialogoDetalleVenta(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(GrisClaro)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .padding(12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "No anulable (Solo del día)",
                                     fontSize = 11.sp,
-                                    color = GrisSecundario,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
                                 )
                             }
@@ -837,7 +837,7 @@ fun DialogoConfirmarAnulacion(
                 Text(
                     text = "Esta acción es irreversible. Todos los productos de esta venta se reincorporarán automáticamente al stock del inventario.",
                     fontSize = 13.sp,
-                    color = GrisTexto
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 CampoTextoPos(
                     valor = motivo,
@@ -860,7 +860,7 @@ fun DialogoConfirmarAnulacion(
                 onClick = alCancelar,
                 enabled = !estaProcesando
             ) {
-                Text(text = "Cancelar", color = GrisTexto)
+                Text(text = "Cancelar", color = MaterialTheme.colorScheme.onSurface)
             }
         }
     )

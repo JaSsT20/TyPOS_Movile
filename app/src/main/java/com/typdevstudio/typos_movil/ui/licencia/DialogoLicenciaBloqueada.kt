@@ -125,7 +125,7 @@ fun DialogoLicenciaBloqueada(
                 .fillMaxWidth()
                 .padding(20.dp),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
         ) {
             Column(
@@ -156,7 +156,7 @@ fun DialogoLicenciaBloqueada(
                     text = titulo,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
@@ -165,7 +165,7 @@ fun DialogoLicenciaBloqueada(
                 Text(
                     text = subtitulo,
                     fontSize = 13.sp,
-                    color = GrisSecundario,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     lineHeight = 18.sp
                 )
@@ -173,15 +173,18 @@ fun DialogoLicenciaBloqueada(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Tarjeta con el Serial del Dispositivo para Copiar y Enviar
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(AzulPrimarioClaro)
-                        .border(1.dp, AzulPrimario.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
-                        .padding(14.dp)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -189,14 +192,14 @@ fun DialogoLicenciaBloqueada(
                             Icon(
                                 imageVector = Icons.Filled.PhoneAndroid,
                                 contentDescription = null,
-                                tint = AzulPrimario,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
                                 text = "SERIAL DE ESTE DISPOSITIVO",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = AzulPrimario,
+                                color = MaterialTheme.colorScheme.primary,
                                 letterSpacing = 0.5.sp
                             )
                         }
@@ -208,7 +211,7 @@ fun DialogoLicenciaBloqueada(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = GrisTexto,
+                            color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
                         )
 

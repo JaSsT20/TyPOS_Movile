@@ -14,6 +14,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,7 +40,7 @@ fun DialogoConfirmacionSalida(
     Dialog(onDismissRequest = alDescartar) {
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
@@ -53,7 +54,7 @@ fun DialogoConfirmacionSalida(
                     text = "¿Qué deseas hacer?",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AzulPrimario,
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
 
@@ -62,7 +63,7 @@ fun DialogoConfirmacionSalida(
                 Text(
                     text = "Elige si deseas cerrar tu sesión actual, salir de la aplicación o continuar trabajando.",
                     fontSize = 14.sp,
-                    color = GrisTexto,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 

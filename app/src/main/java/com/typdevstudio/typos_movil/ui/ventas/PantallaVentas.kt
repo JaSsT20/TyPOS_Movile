@@ -161,7 +161,7 @@ fun PantallaVentas(
     if (mostrarModalCarrito) {
         ModalBottomSheet(
             onDismissRequest = { mostrarModalCarrito = false },
-            containerColor = Blanco,
+            containerColor = MaterialTheme.colorScheme.surface,
             dragHandle = { BottomSheetDefaults.DragHandle() }
         ) {
             HojaDetalleCarrito(
@@ -226,7 +226,7 @@ fun PantallaVentas(
                 )
             }
         },
-        containerColor = FondoClaro
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
         Column(
             modifier = Modifier
@@ -237,7 +237,7 @@ fun PantallaVentas(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Blanco)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -260,7 +260,7 @@ fun PantallaVentas(
                                     Icon(
                                         imageVector = Icons.Filled.Clear,
                                         contentDescription = "Limpiar",
-                                        tint = GrisMedio
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -276,14 +276,14 @@ fun PantallaVentas(
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = GrisTexto,
-                        unfocusedTextColor = GrisTexto,
-                        focusedPlaceholderColor = GrisMedio,
-                        unfocusedPlaceholderColor = GrisMedio,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         focusedBorderColor = AzulPrimario,
-                        unfocusedBorderColor = GrisClaro,
-                        focusedContainerColor = FondoClaro,
-                        unfocusedContainerColor = FondoClaro,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.background,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.background,
                         cursorColor = AzulPrimario
                     )
                 )
@@ -303,8 +303,8 @@ fun PantallaVentas(
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = AzulPrimario,
                                     selectedLabelColor = Blanco,
-                                    containerColor = FondoClaro,
-                                    labelColor = GrisTexto
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurface
                                 )
                             )
                         }
@@ -372,7 +372,7 @@ fun TarjetaProductoVenta(
     Card(
         onClick = alAgregar,
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -404,7 +404,7 @@ fun TarjetaProductoVenta(
                     text = producto.nombre,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = GrisTexto,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
 
@@ -507,7 +507,7 @@ fun BarraInferiorCarrito(
 ) {
     Card(
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        colors = CardDefaults.cardColors(containerColor = Blanco),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -628,7 +628,7 @@ fun HojaDetalleCarrito(
                 text = "Carrito de Compras (${carrito.sumOf { it.cantidad.toInt() }})",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = GrisTexto
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = "Vaciar",
@@ -654,7 +654,7 @@ fun HojaDetalleCarrito(
             items(carrito, key = { it.producto.id }) { item ->
                 Card(
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = FondoClaro),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -668,13 +668,13 @@ fun HojaDetalleCarrito(
                                 text = item.producto.nombre,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GrisTexto,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1
                             )
                             Text(
                                 text = "$${String.format("%.2f", item.precioUnitario)} c/u  |  Total: $${String.format("%.2f", item.total)}",
                                 fontSize = 12.sp,
-                                color = GrisSecundario
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -687,14 +687,14 @@ fun HojaDetalleCarrito(
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Blanco)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .clickable { alDecrementar(item.producto.id) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = if (item.cantidad == 1.0) Icons.Filled.Delete else Icons.Filled.Remove,
                                     contentDescription = "Disminuir",
-                                    tint = if (item.cantidad == 1.0) RojoError else GrisTexto,
+                                    tint = if (item.cantidad == 1.0) RojoError else MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -703,7 +703,7 @@ fun HojaDetalleCarrito(
                                 text = "${item.cantidad.toInt()}",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GrisTexto,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             )
 
@@ -712,14 +712,14 @@ fun HojaDetalleCarrito(
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (limiteAlcanzado) GrisClaro else AzulPrimario)
+                                    .background(if (limiteAlcanzado) MaterialTheme.colorScheme.outlineVariant else AzulPrimario)
                                     .clickable { alIncrementar(item.producto.id) },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Add,
                                     contentDescription = "Aumentar",
-                                    tint = if (limiteAlcanzado) GrisMedio else Blanco,
+                                    tint = if (limiteAlcanzado) MaterialTheme.colorScheme.onSurfaceVariant else Blanco,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -736,17 +736,17 @@ fun HojaDetalleCarrito(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .background(AzulPrimarioClaro.copy(alpha = 0.25f))
+                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
                 .padding(12.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Subtotal:", fontSize = 13.sp, color = GrisTexto)
-                    Text("$${String.format("%.2f", subtotal)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                    Text("Subtotal:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("$${String.format("%.2f", subtotal)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("ITBIS (18%):", fontSize = 13.sp, color = GrisTexto)
-                    Text("$${String.format("%.2f", itbis)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = GrisTexto)
+                    Text("ITBIS (18%):", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Text("$${String.format("%.2f", itbis)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
