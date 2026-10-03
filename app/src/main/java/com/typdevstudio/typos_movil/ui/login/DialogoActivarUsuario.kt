@@ -82,6 +82,7 @@ fun DialogoActivarUsuario(
 
     var codigoIngresado by remember { mutableStateOf("") }
     var infoToken by remember { mutableStateOf<InfoTokenUsuario?>(null) }
+    var nombreCompleto by remember { mutableStateOf("") }
     var clave by remember { mutableStateOf("") }
     var confirmarClave by remember { mutableStateOf("") }
     var mensajeError by remember { mutableStateOf<String?>(null) }
@@ -104,6 +105,7 @@ fun DialogoActivarUsuario(
                 mensajeError = "El usuario '${res.nombreUsuario}' ya está registrado en este dispositivo."
             } else {
                 infoToken = res
+                nombreCompleto = res.nombreUsuario.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }
                 mensajeError = null
             }
         }
@@ -111,6 +113,10 @@ fun DialogoActivarUsuario(
 
     fun registrarUsuario() {
         val token = infoToken ?: return
+        if (nombreCompleto.isBlank()) {
+            mensajeError = "Por favor ingresa tu Nombre y Apellido"
+            return
+        }
         if (clave.isBlank() || clave.length < 4) {
             mensajeError = "La contraseña debe tener al menos 4 caracteres"
             return
@@ -126,7 +132,7 @@ fun DialogoActivarUsuario(
         coroutineScope.launch {
             val exito = usuarioRepositorio.registrarNuevoUsuario(
                 nombreUsuario = token.nombreUsuario,
-                nombreCompleto = token.nombreUsuario.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() },
+                nombreCompleto = nombreCompleto.trim(),
                 clave = clave,
                 rol = token.rol
             )
@@ -267,6 +273,15 @@ fun DialogoActivarUsuario(
                             color = GrisTexto
                         )
                     }
+
+                    // Campo de Nombre y Apellido
+                    CampoTextoPos(
+                        valor = nombreCompleto,
+                        alCambiarValor = { nombreCompleto = it },
+                        etiqueta = "Nombre y Apellido *",
+                        iconoInicio = Icons.Filled.Person,
+                        opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next)
+                    )
 
                     // Campos de Contraseña
                     CampoTextoPos(
