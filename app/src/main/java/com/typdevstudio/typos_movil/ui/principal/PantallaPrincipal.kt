@@ -33,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -57,9 +58,7 @@ import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
 import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
-import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 
 @OptIn(ExperimentalMaterial3Api::class)

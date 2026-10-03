@@ -5,8 +5,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +33,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -55,15 +57,8 @@ import com.typdevstudio.typos_movil.ui.componentes.CampoTextoPos
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
-import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
-import com.typdevstudio.typos_movil.ui.theme.Blanco
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
-import com.typdevstudio.typos_movil.ui.theme.GrisClaro
-import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
-import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
-import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -294,7 +289,7 @@ fun DialogoLicenciaBloqueada(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(FondoClaro)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(12.dp)
                 ) {
                     Row(
@@ -310,7 +305,7 @@ fun DialogoLicenciaBloqueada(
                         Text(
                             text = "Solicita tu nueva clave al desarrollador enviándole el serial de este dispositivo.",
                             fontSize = 11.sp,
-                            color = GrisSecundario,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 15.sp
                         )
                     }

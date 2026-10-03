@@ -34,6 +34,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -63,11 +64,8 @@ import com.typdevstudio.typos_movil.ui.componentes.DialogoEscanerCodigoBarras
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
-import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
-import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -421,8 +419,8 @@ fun PantallaFormularioProducto(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "Base: $${String.format("%.2f", baseImp)}", fontSize = 12.sp, color = GrisTexto)
-                                    Text(text = "ITBIS: $${String.format("%.2f", itbisMonto)}", fontSize = 12.sp, color = if (itbisMonto > 0) AzulPrimario else GrisSecundario)
+                                    Text(text = "Base: $${String.format("%.2f", baseImp)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(text = "ITBIS: $${String.format("%.2f", itbisMonto)}", fontSize = 12.sp, color = if (itbisMonto > 0) AzulPrimario else MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(text = "Total Venta: $${String.format("%.2f", totalCobro)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = AzulPrimario)
                                 }
                             }
@@ -434,10 +432,10 @@ fun PantallaFormularioProducto(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (estado.controlaStock) AzulPrimarioClaro.copy(alpha = 0.25f) else FondoClaro)
+                            .background(if (estado.controlaStock) AzulPrimarioClaro.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 1.dp,
-                                color = if (estado.controlaStock) AzulPrimario.copy(alpha = 0.4f) else GrisClaro,
+                                color = if (estado.controlaStock) AzulPrimario.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { viewModel.onControlaStockCambiado(!estado.controlaStock) }
@@ -453,12 +451,12 @@ fun PantallaFormularioProducto(
                                     text = "Controlar inventario (Stock)",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (estado.controlaStock) AzulPrimario else GrisTexto
+                                    color = if (estado.controlaStock) AzulPrimario else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = if (estado.controlaStock) "Descuenta unidades automáticamente al vender" else "Desactivado (Producto o Servicio sin límite)",
                                     fontSize = 12.sp,
-                                    color = GrisSecundario
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Switch(

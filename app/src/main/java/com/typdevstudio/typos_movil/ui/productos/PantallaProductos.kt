@@ -41,6 +41,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -67,11 +68,8 @@ import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
 import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
-import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
-import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 
@@ -325,13 +323,13 @@ fun PantallaProductos(
                         Box(
                             modifier = Modifier
                                 .size(72.dp)
-                                .background(GrisClaro.copy(alpha = 0.5f), shape = CircleShape),
+                                .background(MaterialTheme.colorScheme.surfaceVariant, shape = CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Inventory2,
                                 contentDescription = null,
-                                tint = GrisMedio,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -340,13 +338,13 @@ fun PantallaProductos(
                             text = "No se encontraron productos",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = GrisTexto
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Prueba cambiando los filtros o agrega un nuevo producto",
                             fontSize = 13.sp,
-                            color = GrisMedio
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }

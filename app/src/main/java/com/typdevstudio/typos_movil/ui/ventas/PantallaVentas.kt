@@ -48,6 +48,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -84,11 +85,8 @@ import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
 import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
-import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
-import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import kotlinx.coroutines.launch
@@ -324,14 +322,14 @@ fun PantallaVentas(
                         Icon(
                             imageVector = Icons.Filled.Inventory2,
                             contentDescription = null,
-                            tint = GrisMedio,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(56.dp)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "No hay productos disponibles",
                             fontSize = 15.sp,
-                            color = GrisMedio,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -443,7 +441,7 @@ fun TarjetaProductoVenta(
                                 .background(AmarilloAdvertencia.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp))
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
-                            Text("+18% ITBIS", fontSize = 10.sp, color = GrisTexto, fontWeight = FontWeight.Bold)
+                            Text("+18% ITBIS", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -575,7 +573,7 @@ fun BarraInferiorCarrito(
                         Text(
                             text = "Total a Pagar",
                             fontSize = 11.sp,
-                            color = GrisSecundario
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "$${String.format("%.2f", total)}",

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,10 +34,6 @@ import com.typdevstudio.typos_movil.datos.local.entidades.VentaEntidad
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
-import com.typdevstudio.typos_movil.ui.theme.Blanco
-import com.typdevstudio.typos_movil.ui.theme.GrisClaro
-import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
-import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 
 @Composable
