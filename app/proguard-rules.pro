@@ -9,7 +9,7 @@
 # Protege todas las clases, ViewModels, Repositorios, Entidades y Room DAOs de la app
 -keep class com.typdevstudio.typos_movil.** { *; }
 -keep interface com.typdevstudio.typos_movil.** { *; }
--keepenum class com.typdevstudio.typos_movil.** { *; }
+-keep enum com.typdevstudio.typos_movil.** { *; }
 
 # --- ROOM DATABASE ---
 -keep class androidx.room.** { *; }
