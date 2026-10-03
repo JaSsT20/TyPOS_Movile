@@ -17,6 +17,7 @@ data class LicenciaUiState(
     val estado: EstadoLicencia = EstadoLicencia.SinLicencia,
     val serialDispositivo: String = "",
     val claveIngresada: String = "",
+    val estaVerificandoInicial: Boolean = true,
     val estaActivando: Boolean = false,
     val mensajeError: String? = null,
     val activacionExitosa: Boolean = false
@@ -27,7 +28,7 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
     val repositorio: LicenciaRepositorio
     val serialDispositivo: String = IdDispositivo.obtenerSerialDispositivo(application)
 
-    private val _uiState = MutableStateFlow(LicenciaUiState(serialDispositivo = serialDispositivo))
+    private val _uiState = MutableStateFlow(LicenciaUiState(serialDispositivo = serialDispositivo, estaVerificandoInicial = true))
     val uiState: StateFlow<LicenciaUiState> = _uiState.asStateFlow()
 
     init {
@@ -39,7 +40,7 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
     fun verificarLicencia() {
         viewModelScope.launch {
             val estado = repositorio.verificarEstadoLicencia()
-            _uiState.update { it.copy(estado = estado) }
+            _uiState.update { it.copy(estado = estado, estaVerificandoInicial = false) }
         }
     }
 

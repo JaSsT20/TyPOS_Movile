@@ -77,6 +77,11 @@ fun DialogoLicenciaBloqueada(
     val estadoUi by viewModel.uiState.collectAsState()
     val contexto = LocalContext.current
 
+    // Validación silenciosa: No mostrar el popup mientras verifica la base de datos al arrancar
+    if (estadoUi.estaVerificandoInicial || estadoUi.estado is EstadoLicencia.Activa) {
+        return
+    }
+
     val (titulo, subtitulo, icono, colorIcono) = when (val est = estadoUi.estado) {
         is EstadoLicencia.Vencida -> {
             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
