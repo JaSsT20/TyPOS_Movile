@@ -337,7 +337,7 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
 
     fun iniciarDescargaActualizacion(url: String) {
         val contexto = getApplication<Application>()
-        com.typdevstudio.typos_movil.utilidades.actualizador.ActualizadorApp.iniciarDescarga(contexto, url)
+        com.typdevstudio.typos_movil.utilidades.actualizador.ActualizadorApp.abrirEnNavegador(contexto, url)
         _uiState.update { it.copy(infoActualizacion = null) }
     }
 
