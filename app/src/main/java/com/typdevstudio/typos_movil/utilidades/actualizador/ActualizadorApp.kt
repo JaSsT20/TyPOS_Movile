@@ -151,7 +151,7 @@ object ActualizadorApp {
     }
 
     /**
-     * Compara dos números de versión semántica (ej. "v1.2.0" contra "1.0").
+     * Compara dos números de versión semántica (ej. "v1.2.0" contra "1.0", o "1.0.2A" contra "1.0.2").
      * Retorna true si [remota] es estrictamente mayor que [local].
      */
     fun esVersionMasReciente(remota: String, local: String): Boolean {
@@ -159,15 +159,37 @@ object ActualizadorApp {
             val limpiaRemota = remota.removePrefix("v").removePrefix("V").trim()
             val limpiaLocal = local.removePrefix("v").removePrefix("V").trim()
 
-            val partesRemotas = limpiaRemota.split(".").mapNotNull { it.takeWhile { c -> c.isDigit() }.toIntOrNull() }
-            val partesLocales = limpiaLocal.split(".").mapNotNull { it.takeWhile { c -> c.isDigit() }.toIntOrNull() }
+            if (limpiaRemota.equals(limpiaLocal, ignoreCase = true)) {
+                return false
+            }
+
+            val partesRemotas = limpiaRemota.split(".")
+            val partesLocales = limpiaLocal.split(".")
 
             val maxLongitud = maxOf(partesRemotas.size, partesLocales.size)
             for (i in 0 until maxLongitud) {
-                val numRemoto = partesRemotas.getOrElse(i) { 0 }
-                val numLocal = partesLocales.getOrElse(i) { 0 }
+                val strRemota = partesRemotas.getOrElse(i) { "0" }
+                val strLocal = partesLocales.getOrElse(i) { "0" }
+
+                val numRemoto = strRemota.takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+                val numLocal = strLocal.takeWhile { it.isDigit() }.toIntOrNull() ?: 0
+
                 if (numRemoto > numLocal) return true
                 if (numRemoto < numLocal) return false
+
+                // Si los números base son iguales, comparar sufijos (ej: "2A" vs "2" o "2B" vs "2A")
+                val sufijoRemoto = strRemota.dropWhile { it.isDigit() }.trim()
+                val sufijoLocal = strLocal.dropWhile { it.isDigit() }.trim()
+
+                if (sufijoRemoto.isNotEmpty() && sufijoLocal.isEmpty()) {
+                    return true
+                } else if (sufijoRemoto.isEmpty() && sufijoLocal.isNotEmpty()) {
+                    return false
+                } else if (sufijoRemoto.isNotEmpty() && sufijoLocal.isNotEmpty()) {
+                    val comp = sufijoRemoto.compareTo(sufijoLocal, ignoreCase = true)
+                    if (comp > 0) return true
+                    if (comp < 0) return false
+                }
             }
             return false
         } catch (e: Exception) {
