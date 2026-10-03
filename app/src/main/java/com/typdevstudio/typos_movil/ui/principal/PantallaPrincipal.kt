@@ -19,8 +19,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
@@ -35,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -52,7 +55,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
+import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
 import com.typdevstudio.typos_movil.ui.componentes.DialogoConfirmacionSalida
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
@@ -73,6 +78,7 @@ fun PantallaPrincipal(
     val contexto = LocalContext.current
     val usuarioActivo by GestorSesion.usuarioActivo.collectAsState()
     var mostrarDialogoSalida by remember { mutableStateOf(false) }
+    var mostrarDialogoPerfil by remember { mutableStateOf(false) }
 
     // Intercepta el botón Atrás de Android para mostrar el diálogo de confirmación
     BackHandler(enabled = true) {
@@ -93,23 +99,32 @@ fun PantallaPrincipal(
         }
     )
 
+    // Modal de Configuración y Edición de Perfil de Usuario
+    if (mostrarDialogoPerfil && usuarioActivo != null) {
+        val bd = remember { AppBaseDatos.obtenerBaseDatos(contexto) }
+        val repoUsuario = remember { UsuarioRepositorio(bd.usuarioDao()) }
+
+        DialogoPerfilUsuario(
+            usuario = usuarioActivo!!,
+            usuarioRepositorio = repoUsuario,
+            alCerrar = { mostrarDialogoPerfil = false },
+            alPerfilActualizado = { usuarioActualizado ->
+                GestorSesion.iniciarSesion(usuarioActualizado)
+                mostrarDialogoPerfil = false
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "TyPOS Móvil",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Blanco
-                        )
-                        Text(
-                            text = "Usuario: ${usuarioActivo?.nombreCompleto ?: "Desconocido"} (${usuarioActivo?.rol ?: "CAJERO"})",
-                            fontSize = 12.sp,
-                            color = AzulPrimarioClaro
-                        )
-                    }
+                    Text(
+                        text = "TyPOS Móvil",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Blanco
+                    )
                 },
                 actions = {
                     IconButton(onClick = { mostrarDialogoSalida = true }) {
@@ -135,8 +150,9 @@ fun PantallaPrincipal(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Tarjeta de Bienvenida
+            // Tarjeta de Usuario / Perfil (Clickeable para abrir configuraciones de perfil)
             Card(
+                onClick = { mostrarDialogoPerfil = true },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -148,33 +164,50 @@ fun PantallaPrincipal(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .background(AzulPrimarioClaro.copy(alpha = 0.4f), shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = null,
-                            tint = AzulPrimario,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
+                    AvatarUsuario(
+                        fotoUri = usuarioActivo?.fotoUri,
+                        tamano = 52.dp,
+                        iconoTamano = 32.dp
+                    )
+
                     Spacer(modifier = Modifier.width(14.dp))
-                    Column {
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = usuarioActivo?.nombreCompleto ?: "Usuario",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = AzulPrimario.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = usuarioActivo?.rol ?: "CAJERO",
+                                    color = AzulPrimario,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
                         Text(
-                            text = "¡Hola, ${usuarioActivo?.nombreCompleto ?: "Usuario"}!",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Selecciona una opción para comenzar a operar.",
-                            fontSize = 13.sp,
+                            text = "Toca para ver o editar tu perfil",
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Editar Perfil",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
 

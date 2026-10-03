@@ -28,6 +28,9 @@ data class UsuarioEntidad(
     @ColumnInfo(name = "rol")
     val rol: String = "CAJERO", // "ADMINISTRADOR" o "CAJERO"
 
+    @ColumnInfo(name = "foto_uri")
+    val fotoUri: String? = null,
+
     @ColumnInfo(name = "esta_activo")
     val estaActivo: Boolean = true,
 

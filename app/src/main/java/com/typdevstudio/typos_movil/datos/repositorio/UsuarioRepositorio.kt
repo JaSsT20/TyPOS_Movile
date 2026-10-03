@@ -61,9 +61,56 @@ class UsuarioRepositorio(private val usuarioDao: UsuarioDao) {
             false
         }
     }
+
+    suspend fun actualizarPerfil(
+        usuarioId: Long,
+        nuevoNombreCompleto: String,
+        nuevaFotoUri: String?,
+        claveActual: String? = null,
+        nuevaClave: String? = null
+    ): ResultadoActualizacionPerfil = withContext(Dispatchers.IO) {
+        try {
+            val usuario = usuarioDao.obtenerPorId(usuarioId)
+                ?: return@withContext ResultadoActualizacionPerfil.Error("El usuario no existe")
+
+            var claveFinal = usuario.clave
+
+            // Si se suministró nueva clave para cambiar
+            if (!nuevaClave.isNullOrBlank()) {
+                if (claveActual.isNullOrBlank()) {
+                    return@withContext ResultadoActualizacionPerfil.Error("Ingresa tu contraseña o PIN actual")
+                }
+                if (usuario.clave != claveActual.trim()) {
+                    return@withContext ResultadoActualizacionPerfil.Error("La contraseña actual es incorrecta")
+                }
+                if (nuevaClave.trim().length < 4) {
+                    return@withContext ResultadoActualizacionPerfil.Error("La nueva contraseña debe tener al menos 4 caracteres")
+                }
+                claveFinal = nuevaClave.trim()
+            }
+
+            val nombreFinal = nuevoNombreCompleto.trim().ifBlank { usuario.nombreCompleto }
+
+            val usuarioActualizado = usuario.copy(
+                nombreCompleto = nombreFinal,
+                fotoUri = nuevaFotoUri,
+                clave = claveFinal
+            )
+
+            usuarioDao.actualizar(usuarioActualizado)
+            ResultadoActualizacionPerfil.Exito(usuarioActualizado)
+        } catch (e: Exception) {
+            ResultadoActualizacionPerfil.Error("Error al guardar cambios: ${e.localizedMessage ?: "Error inesperado"}")
+        }
+    }
 }
 
 sealed interface ResultadoAutenticacion {
     data class Exito(val usuario: UsuarioEntidad) : ResultadoAutenticacion
     data class Error(val mensaje: String) : ResultadoAutenticacion
+}
+
+sealed interface ResultadoActualizacionPerfil {
+    data class Exito(val usuario: UsuarioEntidad) : ResultadoActualizacionPerfil
+    data class Error(val mensaje: String) : ResultadoActualizacionPerfil
 }

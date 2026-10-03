@@ -47,6 +47,12 @@ val MIGRACION_6_7 = object : Migration(6, 7) {
     }
 }
 
+val MIGRACION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE usuarios ADD COLUMN foto_uri TEXT")
+    }
+}
+
 @Database(
     entities = [
         UsuarioEntidad::class,
@@ -56,7 +62,7 @@ val MIGRACION_6_7 = object : Migration(6, 7) {
         ConfiguracionNegocioEntidad::class,
         LicenciaEntidad::class
     ],
-    version = 7, // Versión 7: Tabla licencia para control offline
+    version = 8, // Versión 8: Columna foto_uri en tabla usuarios
     exportSchema = false
 )
 abstract class AppBaseDatos : RoomDatabase() {
@@ -78,7 +84,7 @@ abstract class AppBaseDatos : RoomDatabase() {
                     AppBaseDatos::class.java,
                     "typos_movil_bd.db"
                 )
-                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7)
+                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8)
                     .addCallback(CallbackInicial(contexto))
                     .fallbackToDestructiveMigration()
                     .build()
