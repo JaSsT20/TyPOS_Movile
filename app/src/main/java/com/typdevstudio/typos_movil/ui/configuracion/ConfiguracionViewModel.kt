@@ -33,6 +33,7 @@ data class ConfiguracionUiState(
     val modoTema: Int = 0, // 0: Sistema, 1: Claro, 2: Oscuro
     val dispositivosDisponibles: List<DispositivoBluetoothPos> = emptyList(),
     val estadoLicencia: EstadoLicencia = EstadoLicencia.SinLicencia,
+    val serialDispositivo: String = "",
     val claveLicenciaNueva: String = "",
     val estaActivandoLicencia: Boolean = false,
     val estaGuardando: Boolean = false,
@@ -48,16 +49,17 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
 
     private val repositorio: ConfiguracionRepositorio
     private val licenciaRepositorio: LicenciaRepositorio
+    val serialDispositivo: String = com.typdevstudio.typos_movil.utilidades.licencia.IdDispositivo.obtenerSerialDispositivo(application)
+
+    private val _uiState = MutableStateFlow(ConfiguracionUiState(serialDispositivo = serialDispositivo))
+    val uiState: StateFlow<ConfiguracionUiState> = _uiState.asStateFlow()
 
     init {
         val bd = AppBaseDatos.obtenerBaseDatos(application)
         repositorio = ConfiguracionRepositorio(bd.configuracionNegocioDao())
-        licenciaRepositorio = LicenciaRepositorio(bd.licenciaDao())
+        licenciaRepositorio = LicenciaRepositorio(bd.licenciaDao(), serialDispositivo)
         cargarConfiguracion()
     }
-
-    private val _uiState = MutableStateFlow(ConfiguracionUiState())
-    val uiState: StateFlow<ConfiguracionUiState> = _uiState.asStateFlow()
 
     fun cargarConfiguracion() {
         viewModelScope.launch {

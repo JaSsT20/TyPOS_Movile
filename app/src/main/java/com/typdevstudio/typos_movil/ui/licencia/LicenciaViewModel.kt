@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
 import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
+import com.typdevstudio.typos_movil.utilidades.licencia.IdDispositivo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 
 data class LicenciaUiState(
     val estado: EstadoLicencia = EstadoLicencia.SinLicencia,
+    val serialDispositivo: String = "",
     val claveIngresada: String = "",
     val estaActivando: Boolean = false,
     val mensajeError: String? = null,
@@ -22,16 +24,17 @@ data class LicenciaUiState(
 
 class LicenciaViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repositorio: LicenciaRepositorio
+    val repositorio: LicenciaRepositorio
+    val serialDispositivo: String = IdDispositivo.obtenerSerialDispositivo(application)
+
+    private val _uiState = MutableStateFlow(LicenciaUiState(serialDispositivo = serialDispositivo))
+    val uiState: StateFlow<LicenciaUiState> = _uiState.asStateFlow()
 
     init {
         val bd = AppBaseDatos.obtenerBaseDatos(application)
-        repositorio = LicenciaRepositorio(bd.licenciaDao())
+        repositorio = LicenciaRepositorio(bd.licenciaDao(), serialDispositivo)
         verificarLicencia()
     }
-
-    private val _uiState = MutableStateFlow(LicenciaUiState())
-    val uiState: StateFlow<LicenciaUiState> = _uiState.asStateFlow()
 
     fun verificarLicencia() {
         viewModelScope.launch {

@@ -604,6 +604,50 @@ fun PantallaConfiguracion(
                         )
                     }
 
+                    // Serial de este Dispositivo
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(FondoClaro)
+                            .border(1.dp, GrisClaro, RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Serial de este Dispositivo",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GrisSecundario
+                                )
+                                Text(
+                                    text = estado.serialDispositivo.ifEmpty { "Cargando..." },
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GrisTexto
+                                )
+                            }
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = {
+                                    val clipboard = contexto.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("Serial TyPOS", estado.serialDispositivo)
+                                    clipboard.setPrimaryClip(clip)
+                                    android.widget.Toast.makeText(contexto, "Serial copiado", android.widget.Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(text = "Copiar", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
                     // Estado visual de la licencia
                     val sdfCompleto = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
                     val sdfFecha = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())

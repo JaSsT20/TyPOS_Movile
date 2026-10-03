@@ -126,7 +126,7 @@ fun DialogoActivarUsuario(
         coroutineScope.launch {
             val exito = usuarioRepositorio.registrarNuevoUsuario(
                 nombreUsuario = token.nombreUsuario,
-                nombreCompleto = token.nombreCompleto,
+                nombreCompleto = token.nombreUsuario.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() },
                 clave = clave,
                 rol = token.rol
             )
@@ -261,18 +261,11 @@ fun DialogoActivarUsuario(
                         HorizontalDivider(color = VerdeExito.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
 
                         Text(
-                            text = "Usuario asignado: ${token.nombreUsuario}",
+                            text = "Usuario asignado: @${token.nombreUsuario}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = GrisTexto
                         )
-                        if (token.nombreCompleto.isNotBlank() && token.nombreCompleto != token.nombreUsuario) {
-                            Text(
-                                text = "Nombre: ${token.nombreCompleto}",
-                                fontSize = 11.sp,
-                                color = GrisSecundario
-                            )
-                        }
                     }
 
                     // Campos de Contraseña

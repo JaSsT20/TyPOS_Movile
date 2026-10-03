@@ -12,11 +12,13 @@ data class InfoLicencia(
     val fechaVencimiento: Long = 0L,
     val diasRestantes: Int = 0,
     val estaVencida: Boolean = false,
+    val serialValido: Boolean = true,
     val mensajeError: String = ""
 )
 
 /**
  * Motor criptográfico simétrico XTEA (128-bit) para TyPOS Móvil.
+ * Con vinculación por Hardware/Serial de Dispositivo.
  * 100% compatible con el generador de licencias de escritorio en C#.
  */
 object CifradorLicencias {
@@ -35,9 +37,27 @@ object CifradorLicencias {
     private const val MS_POR_DIA = 86400000L
 
     /**
-     * Descifra y valida una clave de 16 caracteres (ej: "A7B2-9F1C-4E80-D35A").
+     * Calcula el hash de 18 bits del Serial del Dispositivo.
      */
-    fun validarClaveLicencia(clave: String, fechaActualMs: Long = System.currentTimeMillis()): InfoLicencia {
+    fun calcularHashSerial(serial: String): Long {
+        val limpia = serial.replace("-", "").replace(" ", "").trim().uppercase(Locale.ROOT)
+        var hash = 0x811C9DC5L
+        for (char in limpia) {
+            hash = hash xor char.code.toLong()
+            hash = (hash * 0x01000193L) and 0xFFFFFFFFL
+        }
+        val folded = ((hash xor (hash ushr 18)) xor (hash ushr 9)) and 0x3FFFFL
+        return folded
+    }
+
+    /**
+     * Descifra y valida una clave de 16 caracteres vinculada al serial de hardware.
+     */
+    fun validarClaveLicencia(
+        clave: String,
+        serialDispositivoActual: String? = null,
+        fechaActualMs: Long = System.currentTimeMillis()
+    ): InfoLicencia {
         try {
             if (clave.isBlank()) {
                 return InfoLicencia(esValida = false, mensajeError = "La clave no puede estar vacía")
@@ -70,13 +90,26 @@ object CifradorLicencias {
                 v0 = (v0 - (shift0 xor key0)) and 0xFFFFFFFFL
             }
 
-            val epochDays = v0 and 0xFFFFFFFFL
+            val epochDays = (v0 ushr 18) and 0x3FFFL
+            val deviceHashLeido = v0 and 0x3FFFFL
             val diasValidez = ((v1 ushr 16) and 0xFFFFL).toInt()
             val checksumLeido = (v1 and 0xFFFFL).toInt()
 
-            val checksumEsperado = calcularChecksum(epochDays, diasValidez)
+            val checksumEsperado = calcularChecksum(epochDays, diasValidez, deviceHashLeido)
             if (checksumLeido != checksumEsperado) {
                 return InfoLicencia(esValida = false, mensajeError = "Clave de licencia incorrecta o alterada")
+            }
+
+            // Verificar si la clave fue generada específicamente para este dispositivo
+            if (!serialDispositivoActual.isNullOrBlank()) {
+                val expectedDeviceHash = calcularHashSerial(serialDispositivoActual)
+                if (deviceHashLeido != expectedDeviceHash) {
+                    return InfoLicencia(
+                        esValida = false,
+                        serialValido = false,
+                        mensajeError = "Esta licencia no corresponde a este dispositivo"
+                    )
+                }
             }
 
             val fechaEmisionMs = FECHA_BASE_EPOCH_MS + (epochDays * MS_POR_DIA)
@@ -93,6 +126,7 @@ object CifradorLicencias {
                 fechaVencimiento = fechaVencimientoMs,
                 diasRestantes = if (estaVencida) 0 else diasRestantes.coerceAtLeast(0),
                 estaVencida = estaVencida,
+                serialValido = true,
                 mensajeError = if (estaVencida) "Esta licencia ha vencido" else ""
             )
         } catch (e: Exception) {
@@ -100,8 +134,8 @@ object CifradorLicencias {
         }
     }
 
-    private fun calcularChecksum(epochDays: Long, dias: Int): Int {
-        val hash = (epochDays * 31337L) xor (dias.toLong() * 7919L) xor CONSTANTE_MAGICA
+    private fun calcularChecksum(epochDays: Long, dias: Int, deviceHash: Long): Int {
+        val hash = (epochDays * 31337L) xor (dias.toLong() * 7919L) xor (deviceHash * 65537L) xor CONSTANTE_MAGICA
         return (((hash xor (hash ushr 16)) and 0xFFFFL)).toInt()
     }
 }

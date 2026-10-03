@@ -1,6 +1,12 @@
 package com.typdevstudio.typos_movil.ui.licencia
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,17 +16,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -28,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,11 +68,14 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
 @Composable
 fun DialogoLicenciaBloqueada(
     viewModel: LicenciaViewModel
 ) {
     val estadoUi by viewModel.uiState.collectAsState()
+    val contexto = LocalContext.current
 
     val (titulo, subtitulo, icono, colorIcono) = when (val est = estadoUi.estado) {
         is EstadoLicencia.Vencida -> {
@@ -66,7 +83,7 @@ fun DialogoLicenciaBloqueada(
             val fechaVenc = sdf.format(Date(est.fechaVencimiento))
             Quadruple(
                 "Licencia Vencida",
-                "Tu licencia de TyPOS Móvil expiró el $fechaVenc. Para continuar facturando y usando el sistema, ingresa una nueva clave de activación.",
+                "Tu licencia de TyPOS Móvil expiró el $fechaVenc. Envía tu Serial de Dispositivo a soporte para renovar tu activación.",
                 Icons.Filled.Lock,
                 RojoError
             )
@@ -82,7 +99,7 @@ fun DialogoLicenciaBloqueada(
         is EstadoLicencia.SinLicencia -> {
             Quadruple(
                 "Activación Requerida",
-                "Bienvenido a TyPOS Móvil. Por favor ingresa tu clave de licencia de 16 caracteres para activar el sistema.",
+                "Bienvenido a TyPOS Móvil. Copia el Serial de este Dispositivo y envíalo a tu proveedor para obtener tu clave de licencia.",
                 Icons.Filled.Key,
                 AzulPrimario
             )
@@ -109,6 +126,7 @@ fun DialogoLicenciaBloqueada(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -147,7 +165,98 @@ fun DialogoLicenciaBloqueada(
                     lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // Tarjeta con el Serial del Dispositivo para Copiar y Enviar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(AzulPrimarioClaro)
+                        .border(1.dp, AzulPrimario.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+                        .padding(14.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PhoneAndroid,
+                                contentDescription = null,
+                                tint = AzulPrimario,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "SERIAL DE ESTE DISPOSITIVO",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AzulPrimario,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = estadoUi.serialDispositivo.ifEmpty { "OBTENIENDO..." },
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GrisTexto,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Botón Copiar Serial
+                            OutlinedButton(
+                                onClick = {
+                                    val clipboard = contexto.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Serial TyPOS", estadoUi.serialDispositivo)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(contexto, "Serial copiado al portapapeles", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AzulPrimario)
+                            ) {
+                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "Copiar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            // Botón Compartir Serial
+                            OutlinedButton(
+                                onClick = {
+                                    val sendIntent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            "Hola, este es mi Serial de TyPOS Móvil para generar la licencia:\n${estadoUi.serialDispositivo}"
+                                        )
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = Intent.createChooser(sendIntent, "Enviar Serial de TyPOS Móvil")
+                                    contexto.startActivity(shareIntent)
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AzulPrimario)
+                            ) {
+                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "Compartir", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // Campo para ingresar la clave
                 CampoTextoPos(
@@ -191,7 +300,7 @@ fun DialogoLicenciaBloqueada(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Solicita tu nueva clave al equipo de soporte de TyPOS para renovar tu suscripción.",
+                            text = "Solicita tu nueva clave al desarrollador enviándole el serial de este dispositivo.",
                             fontSize = 11.sp,
                             color = GrisSecundario,
                             lineHeight = 15.sp
@@ -202,5 +311,3 @@ fun DialogoLicenciaBloqueada(
         }
     }
 }
-
-private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

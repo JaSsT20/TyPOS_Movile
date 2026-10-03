@@ -24,7 +24,10 @@ sealed class EstadoLicencia {
     data class RelojAlterado(val ultimaFechaUso: Long) : EstadoLicencia()
 }
 
-class LicenciaRepositorio(private val licenciaDao: LicenciaDao) {
+class LicenciaRepositorio(
+    private val licenciaDao: LicenciaDao,
+    private val serialDispositivo: String = ""
+) {
 
     fun obtenerLicencia(): Flow<LicenciaEntidad?> = licenciaDao.obtenerLicencia()
 
@@ -38,7 +41,7 @@ class LicenciaRepositorio(private val licenciaDao: LicenciaDao) {
             return@withContext EstadoLicencia.RelojAlterado(licencia.ultimaFechaUso)
         }
 
-        val info = CifradorLicencias.validarClaveLicencia(licencia.claveLicencia, ahora)
+        val info = CifradorLicencias.validarClaveLicencia(licencia.claveLicencia, serialDispositivo, ahora)
 
         if (!info.esValida || info.estaVencida || ahora >= licencia.fechaVencimiento) {
             if (licencia.estado != "VENCIDA") {
@@ -64,7 +67,7 @@ class LicenciaRepositorio(private val licenciaDao: LicenciaDao) {
 
     suspend fun activarLicencia(clave: String): InfoLicencia = withContext(Dispatchers.IO) {
         val ahora = System.currentTimeMillis()
-        val info = CifradorLicencias.validarClaveLicencia(clave, ahora)
+        val info = CifradorLicencias.validarClaveLicencia(clave, serialDispositivo, ahora)
 
         if (!info.esValida) {
             return@withContext info

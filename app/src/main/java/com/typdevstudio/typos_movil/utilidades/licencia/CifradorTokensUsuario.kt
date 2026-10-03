@@ -1,137 +1,143 @@
 package com.typdevstudio.typos_movil.utilidades.licencia
 
-import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
-import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
-import javax.crypto.spec.SecretKeySpec
 
 /**
- * Modelo de datos con la información descifrada de un token de invitación/activación de usuario.
+ * Información decodificada de un token corto de activación de usuario.
  */
 data class InfoTokenUsuario(
     val esValido: Boolean,
     val nombreUsuario: String = "",
-    val nombreCompleto: String = "",
-    val rol: String = "CAJERO", // "CAJERO" o "ADMINISTRADOR"
-    val timestampEmision: Long = 0L,
+    val rol: String = "CAJERO",
+    val fechaEmisionMs: Long = 0L,
     val horasValidez: Int = 0,
-    val fechaExpiracion: Long? = null,
     val estaExpirado: Boolean = false,
     val mensajeError: String = ""
 )
 
 /**
- * Motor Criptográfico AES-128-CBC para validación y descifrado de códigos de activación de usuarios.
- * 100% interoperable con el generador en C# (.NET 10).
+ * Cifrador simétrico ultracompacto para Tokens de Activación de Usuario en TyPOS Móvil.
+ * Formato: USR-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (24 caracteres hexadecimales en 6 bloques).
+ * 100% compatible con TyPOS_Licenciador (C#).
  */
 object CifradorTokensUsuario {
 
-    // Clave secreta de 128 bits: "TyPOS_User_Key26" (16 bytes)
-    private val CLAVE_SECRETA = byteArrayOf(
-        0x54, 0x79, 0x50, 0x4F, 0x53, 0x5F, 0x55, 0x73, 0x65, 0x72, 0x5F, 0x4B, 0x65, 0x79, 0x32, 0x36
+    private val CLAVE_USUARIOS = longArrayOf(
+        0x4E7A91B2L,
+        0x83DF10CAL,
+        0x5C2B7E9FL,
+        0x19A4D388L
     )
 
-    private const val PREFIJO_TOKEN = "USR"
+    private const val CONSTANTE_MAGICA = 0x55L
+    private const val FECHA_BASE_EPOCH_MS = 1767225600000L // 2026-01-01 UTC
+    private const val MS_POR_DIA = 86400000L
+    private const val MS_POR_HORA = 3600000L
 
     /**
-     * Valida y descifra un token de activación de usuario.
+     * Valida y descifra un token corto de activación de usuario.
      */
-    fun validarToken(token: String, timestampActualMs: Long = System.currentTimeMillis()): InfoTokenUsuario {
+    fun validarToken(token: String, fechaActualMs: Long = System.currentTimeMillis()): InfoTokenUsuario {
         try {
             if (token.isBlank()) {
-                return InfoTokenUsuario(esValido = false, mensajeError = "El código está vacío")
+                return InfoTokenUsuario(esValido = false, mensajeError = "El código no puede estar vacío")
             }
 
-            var limpia = token.replace("-", "").replace(" ", "").trim().uppercase(Locale.ROOT)
-            if (limpia.startsWith(PREFIJO_TOKEN)) {
-                limpia = limpia.substring(PREFIJO_TOKEN.length)
+            var limpia = token.trim().uppercase(Locale.ROOT)
+            if (limpia.startsWith("USR-") || limpia.startsWith("USR")) {
+                limpia = limpia.removePrefix("USR-").removePrefix("USR")
             }
+            limpia = limpia.replace("-", "").replace(" ", "").trim()
 
-            if (limpia.length < 32 || limpia.length % 2 != 0) {
-                return InfoTokenUsuario(esValido = false, mensajeError = "Formato de código inválido")
-            }
-
-            val cipherWithIv = hexToByteArray(limpia)
-            if (cipherWithIv.size < 32) {
-                return InfoTokenUsuario(esValido = false, mensajeError = "Código corrupto o incompleto")
-            }
-
-            val iv = ByteArray(16)
-            System.arraycopy(cipherWithIv, 0, iv, 0, 16)
-
-            val cipherLength = cipherWithIv.size - 16
-            val cipherOnly = ByteArray(cipherLength)
-            System.arraycopy(cipherWithIv, 16, cipherOnly, 0, cipherLength)
-
-            val keySpec = SecretKeySpec(CLAVE_SECRETA, "AES")
-            val ivSpec = IvParameterSpec(iv)
-            val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
-            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec)
-
-            val decryptedBytes = cipher.doFinal(cipherOnly)
-            val jsonStr = String(decryptedBytes, Charsets.UTF_8)
-            val json = JSONObject(jsonStr)
-
-            val username = json.optString("u", "").trim().lowercase(Locale.ROOT)
-            val nombreCompleto = json.optString("n", username)
-            val rol = json.optString("r", "CAJERO").uppercase(Locale.ROOT)
-            val timestampSec = json.optLong("t", 0L)
-            val horasValidez = json.optInt("h", 0)
-
-            if (username.isBlank()) {
-                return InfoTokenUsuario(esValido = false, mensajeError = "Estructura del token no reconocida")
-            }
-
-            val fechaExpiracionMs: Long? = if (horasValidez > 0) (timestampSec + horasValidez * 3600L) * 1000L else null
-            val expirado = fechaExpiracionMs != null && timestampActualMs > fechaExpiracionMs
-
-            if (expirado) {
-                val sdf = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
-                val expTexto = sdf.format(Date(fechaExpiracionMs!!))
+            if (limpia.length != 24) {
                 return InfoTokenUsuario(
                     esValido = false,
-                    nombreUsuario = username,
-                    nombreCompleto = nombreCompleto,
-                    rol = rol,
-                    timestampEmision = timestampSec,
-                    horasValidez = horasValidez,
-                    fechaExpiracion = fechaExpiracionMs,
-                    estaExpirado = true,
-                    mensajeError = "El código de activación expiró el $expTexto"
+                    mensajeError = "El código debe contener 24 caracteres (formato: USR-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX)"
                 )
             }
 
+            var v0 = limpia.substring(0, 8).toLongOrNull(16)
+                ?: return InfoTokenUsuario(esValido = false, mensajeError = "Código inválido")
+            var v1 = limpia.substring(8, 16).toLongOrNull(16)
+                ?: return InfoTokenUsuario(esValido = false, mensajeError = "Código inválido")
+            var v2 = limpia.substring(16, 24).toLongOrNull(16)
+                ?: return InfoTokenUsuario(esValido = false, mensajeError = "Código inválido")
+
+            // Descifrado de 3 palabras Feistel (32 rondas inversas)
+            for (r in 31 downTo 0) {
+                val k = CLAVE_USUARIOS[r and 3]
+                val f2 = (((v0 shl 4) xor (v1 ushr 5)) + k) and 0xFFFFFFFFL
+                v2 = (v2 - f2) and 0xFFFFFFFFL
+
+                val f1 = (((v2 shl 4) xor (v0 ushr 5)) + k) and 0xFFFFFFFFL
+                v1 = (v1 - f1) and 0xFFFFFFFFL
+
+                val f0 = (((v1 shl 4) xor (v2 ushr 5)) + k) and 0xFFFFFFFFL
+                v0 = (v0 - f0) and 0xFFFFFFFFL
+            }
+
+            // Desempaquetar 12 bytes
+            val bytes = ByteArray(12)
+            bytes[0] = ((v0 ushr 24) and 0xFFL).toByte()
+            bytes[1] = ((v0 ushr 16) and 0xFFL).toByte()
+            bytes[2] = ((v0 ushr 8) and 0xFFL).toByte()
+            bytes[3] = (v0 and 0xFFL).toByte()
+
+            bytes[4] = ((v1 ushr 24) and 0xFFL).toByte()
+            bytes[5] = ((v1 ushr 16) and 0xFFL).toByte()
+            bytes[6] = ((v1 ushr 8) and 0xFFL).toByte()
+            bytes[7] = (v1 and 0xFFL).toByte()
+
+            bytes[8] = ((v2 ushr 24) and 0xFFL).toByte()
+            bytes[9] = ((v2 ushr 16) and 0xFFL).toByte()
+            bytes[10] = ((v2 ushr 8) and 0xFFL).toByte()
+            bytes[11] = (v2 and 0xFFL).toByte()
+
+            val usernameBytes = bytes.copyOfRange(0, 8)
+            val username = String(usernameBytes, Charsets.US_ASCII).trimEnd { it == '\u0000' || it == ' ' }
+            val rolByte = bytes[8].toInt() and 0xFF
+            val horasValidez = bytes[9].toInt() and 0xFF
+            val epochDaysByte = bytes[10].toInt() and 0xFF
+            val checksumLeido = bytes[11].toInt() and 0xFF
+
+            val checksumEsperado = calcularChecksum(v0, v1, bytes[8], bytes[9], bytes[10])
+            if (checksumLeido != checksumEsperado || username.isBlank()) {
+                return InfoTokenUsuario(
+                    esValido = false,
+                    mensajeError = "Código de usuario inválido o corrupto"
+                )
+            }
+
+            val rol = if (rolByte == 1) "ADMINISTRADOR" else "CAJERO"
+            val fechaEmisionMs = FECHA_BASE_EPOCH_MS + (epochDaysByte * MS_POR_DIA)
+
+            var estaExpirado = false
+            if (horasValidez > 0) {
+                val fechaExpiracionMs = fechaEmisionMs + (horasValidez.toLong() * MS_POR_HOUR_SAFE)
+                if (fechaActualMs > fechaExpiracionMs) {
+                    estaExpirado = true
+                }
+            }
+
             return InfoTokenUsuario(
-                esValido = true,
-                nombreUsuario = username,
-                nombreCompleto = nombreCompleto,
-                rol = if (rol == "ADMINISTRADOR") "ADMINISTRADOR" else "CAJERO",
-                timestampEmision = timestampSec,
+                esValido = !estaExpirado,
+                nombreUsuario = username.lowercase(Locale.ROOT),
+                rol = rol,
+                fechaEmisionMs = fechaEmisionMs,
                 horasValidez = horasValidez,
-                fechaExpiracion = fechaExpiracionMs,
-                estaExpirado = false
+                estaExpirado = estaExpirado,
+                mensajeError = if (estaExpirado) "Este código de invitación ha expirado" else ""
             )
         } catch (e: Exception) {
-            return InfoTokenUsuario(
-                esValido = false,
-                mensajeError = "Código de activación incorrecto o alterado"
-            )
+            return InfoTokenUsuario(esValido = false, mensajeError = "Error al descifrar el código: ${e.localizedMessage}")
         }
     }
 
-    private fun hexToByteArray(hex: String): ByteArray {
-        val len = hex.length
-        val data = ByteArray(len / 2)
-        var i = 0
-        while (i < len) {
-            data[i / 2] = ((Character.digit(hex[i], 16) shl 4) + Character.digit(hex[i + 1], 16)).toByte()
-            i += 2
-        }
-        return data
+    private const val MS_POR_HOUR_SAFE = 3600000L
+
+    private fun calcularChecksum(v0: Long, v1: Long, b8: Byte, b9: Byte, b10: Byte): Int {
+        var hash = (v0 xor v1 xor (b8.toLong() shl 16) xor (b9.toLong() shl 8) xor b10.toLong()) xor CONSTANTE_MAGICA
+        hash = (hash xor (hash ushr 16) xor (hash ushr 8)) and 0xFFL
+        return hash.toInt()
     }
 }
