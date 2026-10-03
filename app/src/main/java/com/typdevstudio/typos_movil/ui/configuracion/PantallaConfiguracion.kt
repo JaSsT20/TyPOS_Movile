@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,38 +51,41 @@ import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -100,7 +104,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -116,8 +119,6 @@ import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
-import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
-import com.typdevstudio.typos_movil.ui.theme.FondoClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
@@ -197,54 +198,130 @@ fun PantallaConfiguracion(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AzulPrimario)
             )
         },
-        containerColor = FondoClaro
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValores)
         ) {
-            AnimatedContent(
-                targetState = seccionActual,
-                transitionSpec = {
-                    if (targetState == SeccionConfiguracion.MENU_PRINCIPAL) {
-                        (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
-                    } else {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
-                    }
-                },
-                label = "TransicionConfiguracion"
-            ) { seccion ->
-                when (seccion) {
-                    SeccionConfiguracion.MENU_PRINCIPAL -> {
-                        MenuPrincipalConfiguracion(
-                            estado = estado,
-                            alSeleccionarSeccion = { seccionActual = it }
-                        )
-                    }
-                    SeccionConfiguracion.APARIENCIA -> {
-                        SubPantallaApariencia(viewModel = viewModel, estado = estado)
-                    }
-                    SeccionConfiguracion.NEGOCIO -> {
-                        SubPantallaNegocio(viewModel = viewModel, estado = estado)
-                    }
-                    SeccionConfiguracion.IMPRESORA -> {
-                        SubPantallaImpresora(viewModel = viewModel, estado = estado)
-                    }
-                    SeccionConfiguracion.INFO_SISTEMA -> {
-                        SubPantallaInfoSistema(viewModel = viewModel, estado = estado)
-                    }
+            // Banner de Alerta Activa: visible en cualquier ventana donde ocurra la acción
+            AnimatedVisibility(visible = estado.mensajeAlerta != null) {
+                estado.mensajeAlerta?.let { mensaje ->
+                    BannerAlerta(
+                        mensaje = mensaje,
+                        esError = estado.esErrorAlerta,
+                        alCerrar = { viewModel.limpiarAlerta() }
+                    )
                 }
             }
 
-            // Modal de actualización si se encuentra una nueva
-            estado.infoActualizacion?.let { info ->
-                if (info.hayActualizacion) {
-                    DialogoActualizacion(
-                        info = info,
-                        alDescartar = { viewModel.descartarModalActualizacion() }
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                AnimatedContent(
+                    targetState = seccionActual,
+                    transitionSpec = {
+                        if (targetState == SeccionConfiguracion.MENU_PRINCIPAL) {
+                            (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
+                        } else {
+                            (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+                        }
+                    },
+                    label = "TransicionConfiguracion"
+                ) { seccion ->
+                    when (seccion) {
+                        SeccionConfiguracion.MENU_PRINCIPAL -> {
+                            MenuPrincipalConfiguracion(
+                                estado = estado,
+                                alSeleccionarSeccion = { seccionActual = it }
+                            )
+                        }
+                        SeccionConfiguracion.APARIENCIA -> {
+                            SubPantallaApariencia(viewModel = viewModel, estado = estado)
+                        }
+                        SeccionConfiguracion.NEGOCIO -> {
+                            SubPantallaNegocio(viewModel = viewModel, estado = estado)
+                        }
+                        SeccionConfiguracion.IMPRESORA -> {
+                            SubPantallaImpresora(viewModel = viewModel, estado = estado)
+                        }
+                        SeccionConfiguracion.INFO_SISTEMA -> {
+                            SubPantallaInfoSistema(viewModel = viewModel, estado = estado)
+                        }
+                    }
                 }
+
+                // Modal emergente cuando se encuentra una actualización
+                estado.infoActualizacion?.let { info ->
+                    if (info.hayActualizacion) {
+                        DialogoActualizacion(
+                            info = info,
+                            alDescartar = { viewModel.descartarModalActualizacion() }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// BANNER DE FEEDBACK ELEGANTE
+// =========================================================================
+@Composable
+private fun BannerAlerta(
+    mensaje: String,
+    esError: Boolean,
+    alCerrar: () -> Unit
+) {
+    val colorBorde = if (esError) RojoError else VerdeExito
+    val colorFondo = if (esError) RojoError.copy(alpha = 0.14f) else VerdeExito.copy(alpha = 0.14f)
+    val colorTexto = if (esError) RojoError else VerdeExito
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = colorFondo,
+        border = BorderStroke(1.dp, colorBorde.copy(alpha = 0.6f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (esError) Icons.Filled.Error else Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = colorTexto,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                text = mensaje,
+                color = colorTexto,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(
+                onClick = alCerrar,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Cerrar",
+                    tint = colorTexto.copy(alpha = 0.8f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
@@ -265,29 +342,10 @@ private fun MenuPrincipalConfiguracion(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Alerta de feedback general si existe
-        if (estado.mensajeAlerta != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (estado.esErrorAlerta) RojoError.copy(alpha = 0.12f) else VerdeExito.copy(alpha = 0.12f))
-                    .border(1.dp, if (estado.esErrorAlerta) RojoError else VerdeExito, RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                Text(
-                    text = estado.mensajeAlerta!!,
-                    color = if (estado.esErrorAlerta) RojoError else VerdeExito,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-
         // --- GRUPO 1: PREFERENCIAS Y NEGOCIO ---
         Card(
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -296,7 +354,11 @@ private fun MenuPrincipalConfiguracion(
                     icono = Icons.Filled.Palette,
                     colorIcono = Color(0xFF7C4DFF), // Violeta vibrante
                     titulo = "Apariencia y Tema",
-                    subtitulo = "Modo de tema • Claro • Oscuro",
+                    subtitulo = when (estado.modoTema) {
+                        1 -> "Tema Claro activado"
+                        2 -> "Tema Oscuro activado"
+                        else -> "Siguiendo el sistema"
+                    },
                     alHacerClic = { alSeleccionarSeccion(SeccionConfiguracion.APARIENCIA) },
                     mostrarDivisor = true
                 )
@@ -315,7 +377,7 @@ private fun MenuPrincipalConfiguracion(
         // --- GRUPO 2: HARDWARE Y PERIFÉRICOS ---
         Card(
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -340,7 +402,7 @@ private fun MenuPrincipalConfiguracion(
         // --- GRUPO 3: SISTEMA Y SOPORTE ---
         Card(
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -402,13 +464,13 @@ private fun ItemMenuAjustes(
                 text = titulo,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = GrisTexto
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitulo,
                 fontSize = 12.sp,
-                color = GrisSecundario,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 16.sp
             )
         }
@@ -416,14 +478,14 @@ private fun ItemMenuAjustes(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = null,
-            tint = GrisMedio,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(15.dp)
         )
     }
 
     if (mostrarDivisor) {
         HorizontalDivider(
-            color = GrisClaro.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
             modifier = Modifier.padding(start = 74.dp, end = 16.dp)
         )
     }
@@ -443,7 +505,7 @@ private fun SubPantallaApariencia(viewModel: ConfiguracionViewModel, estado: Con
     ) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -451,12 +513,13 @@ private fun SubPantallaApariencia(viewModel: ConfiguracionViewModel, estado: Con
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
                     text = "Selecciona el tema visual de la aplicación:",
-                    fontSize = 13.sp,
-                    color = GrisSecundario
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 val opcionesTema = listOf(
@@ -467,37 +530,37 @@ private fun SubPantallaApariencia(viewModel: ConfiguracionViewModel, estado: Con
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     opcionesTema.forEach { (modo, nombre, icono) ->
                         val seleccionado = estado.modoTema == modo
-                        Box(
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            border = BorderStroke(
+                                width = if (seleccionado) 0.dp else 1.dp,
+                                color = if (seleccionado) Color.Transparent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            ),
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (seleccionado) AzulPrimario else FondoClaro)
-                                .border(
-                                    width = if (seleccionado) 0.dp else 1.dp,
-                                    color = if (seleccionado) Color.Transparent else GrisClaro,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
                                 .clickable { viewModel.onModoTemaCambiado(modo) }
-                                .padding(vertical = 14.dp),
-                            contentAlignment = Alignment.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 16.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 Icon(
                                     imageVector = icono,
                                     contentDescription = null,
-                                    tint = if (seleccionado) Blanco else GrisSecundario,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = if (seleccionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(26.dp)
                                 )
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = nombre,
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = if (seleccionado) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (seleccionado) Blanco else GrisTexto
+                                    color = if (seleccionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -505,14 +568,6 @@ private fun SubPantallaApariencia(viewModel: ConfiguracionViewModel, estado: Con
                 }
             }
         }
-
-        BotonPos(
-            texto = if (estado.estaGuardando) "Guardando..." else "Guardar Preferencia",
-            alHacerClic = { viewModel.guardarConfiguracion() },
-            estaCargando = estado.estaGuardando,
-            icono = Icons.Filled.Save,
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 
@@ -530,7 +585,7 @@ private fun SubPantallaNegocio(viewModel: ConfiguracionViewModel, estado: Config
     ) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -593,6 +648,8 @@ private fun SubPantallaNegocio(viewModel: ConfiguracionViewModel, estado: Config
 // =========================================================================
 @Composable
 private fun SubPantallaImpresora(viewModel: ConfiguracionViewModel, estado: ConfiguracionUiState) {
+    val contexto = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -600,10 +657,10 @@ private fun SubPantallaImpresora(viewModel: ConfiguracionViewModel, estado: Conf
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Tarjeta de Selección Bluetooth
+        // Dispositivo Vinculado Actual
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -611,115 +668,158 @@ private fun SubPantallaImpresora(viewModel: ConfiguracionViewModel, estado: Conf
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Impresora Bluetooth Vinculada",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AzulPrimario
-                    )
-                    IconButton(onClick = { viewModel.buscarDispositivosBluetooth() }) {
-                        Icon(imageVector = Icons.Filled.Refresh, contentDescription = "Refrescar", tint = AzulPrimario)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (estado.nombreImpresora != null) Icons.Filled.BluetoothConnected else Icons.Filled.BluetoothDisabled,
+                            contentDescription = null,
+                            tint = if (estado.nombreImpresora != null) AzulPrimario else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Impresora Actual",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    if (estado.nombreImpresora != null) {
+                        OutlinedButton(
+                            onClick = { viewModel.onDesvincularImpresora() },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text("Desvincular", fontSize = 11.sp, color = RojoError)
+                        }
                     }
                 }
 
-                if (estado.dispositivosDisponibles.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(FondoClaro)
-                            .padding(14.dp),
-                        contentAlignment = Alignment.Center
+                if (estado.nombreImpresora != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "No se encontraron impresoras vinculadas en los ajustes de Bluetooth de tu teléfono.",
-                            fontSize = 12.sp,
-                            color = GrisSecundario,
-                            textAlign = TextAlign.Center
-                        )
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = estado.nombreImpresora ?: "",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "MAC: ${estado.direccionMacImpresora ?: "N/A"}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 } else {
-                    estado.dispositivosDisponibles.forEach { dispositivo ->
-                        val estaSeleccionada = estado.direccionMacImpresora == dispositivo.direccionMac
-                        Box(
+                    Text(
+                        text = "Ninguna impresora vinculada aún. Selecciona un dispositivo de la lista inferior.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Button(
+                    onClick = { viewModel.buscarDispositivosBluetooth() },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Buscar Dispositivos Bluetooth", fontSize = 13.sp)
+                }
+            }
+        }
+
+        // Lista de dispositivos encontrados
+        if (estado.dispositivosDisponibles.isNotEmpty()) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Dispositivos Encontrados",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    estado.dispositivosDisponibles.forEach { disp ->
+                        val esSeleccionada = disp.direccionMac == estado.direccionMacImpresora
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (esSeleccionada) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(
+                                1.dp,
+                                if (esSeleccionada) MaterialTheme.colorScheme.primary else Color.Transparent
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (estaSeleccionada) AzulPrimarioClaro else FondoClaro)
-                                .border(
-                                    width = if (estaSeleccionada) 1.5.dp else 1.dp,
-                                    color = if (estaSeleccionada) AzulPrimario else GrisClaro,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clickable { viewModel.onImpresoraSeleccionada(dispositivo) }
-                                .padding(12.dp)
+                                .clickable { viewModel.onImpresoraSeleccionada(disp) }
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (estaSeleccionada) Icons.Filled.BluetoothConnected else Icons.Filled.Bluetooth,
-                                        contentDescription = null,
-                                        tint = if (estaSeleccionada) AzulPrimario else GrisSecundario
+                                Column {
+                                    Text(
+                                        text = disp.nombre,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Column {
-                                        Text(
-                                            text = dispositivo.nombre,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = GrisTexto
-                                        )
-                                        Text(
-                                            text = dispositivo.direccionMac,
-                                            fontSize = 11.sp,
-                                            color = GrisSecundario
-                                        )
-                                    }
+                                    Text(
+                                        text = disp.direccionMac,
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
 
-                                if (estaSeleccionada) {
+                                if (esSeleccionada) {
                                     Icon(
                                         imageVector = Icons.Filled.Check,
-                                        contentDescription = "Seleccionada",
-                                        tint = AzulPrimario
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
                         }
                     }
                 }
-
-                if (!estado.direccionMacImpresora.isNullOrBlank()) {
-                    OutlinedButton(
-                        onClick = { viewModel.onDesvincularImpresora() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Filled.BluetoothDisabled, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Desvincular Impresora", fontSize = 12.sp)
-                    }
-                }
             }
         }
 
-        // Calibración de Ancho de Papel
+        // Configuración de Papel y Calibración
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -727,122 +827,129 @@ private fun SubPantallaImpresora(viewModel: ConfiguracionViewModel, estado: Conf
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Tamaño y Ancho del Rollo Térmico",
+                    text = "Ancho del Rollo de Papel",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = AzulPrimario
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                val presets = listOf(
+                    Triple(58, "58 mm", "32 col"),
+                    Triple(80, "80 mm", "48 col"),
+                    Triple(57, "57 mm", "30 col"),
+                    Triple(72, "72 mm", "42 col")
                 )
 
                 Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val presets = listOf(
-                        Triple(58, "58 mm", "Estándar Móvil"),
-                        Triple(80, "80 mm", "Estándar Caja"),
-                        Triple(57, "57 mm", "Compacto"),
-                        Triple(72, "72 mm", "Mediano")
-                    )
-
-                    presets.forEach { (mm, titulo, subtitulo) ->
-                        val estaSeleccionado = estado.tamanoPapel == mm
-                        Box(
+                    presets.forEach { (mm, label, cols) ->
+                        val seleccionado = estado.tamanoPapel == mm
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (seleccionado) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (estaSeleccionado) AzulPrimario else FondoClaro)
-                                .border(
-                                    width = if (estaSeleccionado) 0.dp else 1.dp,
-                                    color = if (estaSeleccionado) Color.Transparent else GrisClaro,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
+                                .weight(1f)
                                 .clickable { viewModel.onTamanoPapelPresetSeleccionado(mm) }
-                                .padding(horizontal = 14.dp, vertical = 10.dp)
                         ) {
-                            Column {
+                            Column(
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 Text(
-                                    text = titulo,
-                                    fontSize = 13.sp,
+                                    text = label,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (estaSeleccionado) Blanco else GrisTexto
+                                    fontSize = 13.sp,
+                                    color = if (seleccionado) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = subtitulo,
+                                    text = cols,
                                     fontSize = 10.sp,
-                                    color = if (estaSeleccionado) Blanco.copy(alpha = 0.85f) else GrisSecundario
+                                    color = if (seleccionado) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                     }
                 }
 
-                // Ajuste fino en milímetros
+                // Ajuste fino
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(FondoClaro)
-                            .border(1.dp, GrisClaro, RoundedCornerShape(10.dp))
-                            .clickable { viewModel.onIncrementarMilimetros(-1) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = Icons.Filled.Remove, contentDescription = "-1 mm", tint = GrisTexto, modifier = Modifier.size(20.dp))
-                    }
+                    Text(
+                        text = "Calibración milimétrica:",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                    Box(modifier = Modifier.weight(1f)) {
-                        CampoTextoPos(
-                            valor = estado.anchoMilimetrosPersonalizado,
-                            alCambiarValor = { viewModel.onAnchoMilimetrosManualCambiado(it) },
-                            etiqueta = "Ancho en mm",
-                            iconoInicio = Icons.Filled.AspectRatio,
-                            opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.onIncrementarMilimetros(-1) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Filled.Remove, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+
+                        Text(
+                            text = "${estado.anchoMilimetrosPersonalizado} mm (${estado.columnasPersonalizadas} cols)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
 
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(FondoClaro)
-                            .border(1.dp, GrisClaro, RoundedCornerShape(10.dp))
-                            .clickable { viewModel.onIncrementarMilimetros(1) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = Icons.Filled.Add, contentDescription = "+1 mm", tint = GrisTexto, modifier = Modifier.size(20.dp))
+                        IconButton(
+                            onClick = { viewModel.onIncrementarMilimetros(1) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
-
-                // Botón Imprimir Ticket de Prueba
-                BotonPos(
-                    texto = if (estado.estaImprimiendoPrueba) "Imprimiendo..." else "Imprimir Ticket de Prueba",
-                    alHacerClic = { viewModel.imprimirTicketPrueba() },
-                    estaCargando = estado.estaImprimiendoPrueba,
-                    icono = Icons.Filled.Receipt,
-                    variante = VarianteBoton.SECUNDARIO,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
 
-        BotonPos(
-            texto = if (estado.estaGuardando) "Guardando..." else "Guardar Configuración de Impresora",
-            alHacerClic = { viewModel.guardarConfiguracion() },
-            estaCargando = estado.estaGuardando,
-            icono = Icons.Filled.Save,
-            modifier = Modifier.fillMaxWidth()
-        )
+        // Botón de Prueba y Guardar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedButton(
+                onClick = { viewModel.imprimirTicketPrueba() },
+                enabled = estado.direccionMacImpresora != null && !estado.estaImprimiendoPrueba,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+            ) {
+                Text(
+                    text = if (estado.estaImprimiendoPrueba) "Imprimiendo..." else "Probar Ticket",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            BotonPos(
+                texto = if (estado.estaGuardando) "Guardando..." else "Guardar Impresora",
+                alHacerClic = { viewModel.guardarConfiguracion() },
+                estaCargando = estado.estaGuardando,
+                icono = Icons.Filled.Save,
+                modifier = Modifier.weight(1.3f)
+            )
+        }
     }
 }
 
 // =========================================================================
-// SUB-PANTALLA 4: INFORMACIÓN DEL SISTEMA
+// SUB-PANTALLA 4: INFORMACIÓN DEL SISTEMA, LICENCIA Y ACTUALIZACIONES
 // =========================================================================
 @Composable
 private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: ConfiguracionUiState) {
@@ -858,7 +965,7 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
         // --- SECCIÓN LICENCIA ---
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -870,64 +977,95 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Filled.Security,
+                        imageVector = Icons.Filled.Verified,
                         contentDescription = null,
                         tint = AzulPrimario,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Licencia y Activación",
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = AzulPrimario
                     )
                 }
 
-                // Tarjeta de Serial del Dispositivo
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(AzulPrimarioClaro)
-                        .border(1.dp, AzulPrimario.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
+                // TARJETA SERIAL DEL DISPOSITIVO (Rediseñada con alta legibilidad y botones claros)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Fingerprint,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
                             Text(
                                 text = "SERIAL DE ESTE DISPOSITIVO",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = AzulPrimario
-                            )
-                            Text(
-                                text = estado.serialDispositivo.ifEmpty { "Cargando..." },
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = GrisTexto
+                                color = MaterialTheme.colorScheme.primary,
+                                letterSpacing = 0.5.sp
                             )
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            OutlinedButton(
+                        // Badge del código serial con texto monospace grande y legible
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = estado.serialDispositivo.ifEmpty { "Generando identificador..." },
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp, horizontal = 12.dp)
+                            )
+                        }
+
+                        // Botones de acción claros y balanceados
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
                                 onClick = {
                                     val clipboard = contexto.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clip = ClipData.newPlainText("Serial TyPOS", estado.serialDispositivo)
                                     clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(contexto, "Serial copiado", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(contexto, "Serial copiado al portapapeles", Toast.LENGTH_SHORT).show()
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AzulPrimario,
+                                    contentColor = Blanco
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Copiar", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Copiar", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
 
                             OutlinedButton(
@@ -943,10 +1081,17 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
                                     val shareIntent = Intent.createChooser(sendIntent, "Enviar Serial TyPOS")
                                     contexto.startActivity(shareIntent)
                                 },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, AzulPrimario),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = AzulPrimario
+                                ),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Compartir", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -961,86 +1106,99 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
                         val fechaVencTexto = if (lic.fechaVencimiento > 0) sdfFecha.format(Date(lic.fechaVencimiento)) else "Sin límite"
                         val fechaAplicadaTexto = if (lic.fechaActivacion > 0) sdfCompleto.format(Date(lic.fechaActivacion)) else "Registrada"
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(VerdeExito.copy(alpha = 0.08f))
-                                .border(1.dp, VerdeExito.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = VerdeExito.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, VerdeExito.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(text = "Estado:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrisSecundario)
-                                Box(
-                                    modifier = Modifier
-                                        .background(VerdeExito, RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = "● LICENCIA ACTIVA", fontSize = 11.sp, color = Blanco, fontWeight = FontWeight.Bold)
+                                    Text(text = "Estado:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Surface(
+                                        color = VerdeExito,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "● LICENCIA ACTIVA",
+                                            fontSize = 11.sp,
+                                            color = Blanco,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
                                 }
+
+                                HorizontalDivider(color = VerdeExito.copy(alpha = 0.2f))
+
+                                FilaDetalleSistema(etiqueta = "Días Restantes:", valor = "${lic.diasRestantes} días de validez", colorValor = VerdeExito, esNegrita = true)
+                                FilaDetalleSistema(etiqueta = "Fecha de Aplicación:", valor = fechaAplicadaTexto)
+                                FilaDetalleSistema(etiqueta = "Fecha de Vencimiento:", valor = fechaVencTexto)
+                                FilaDetalleSistema(etiqueta = "Clave Activa:", valor = lic.clave.chunked(4).joinToString("-"))
                             }
-
-                            HorizontalDivider(color = VerdeExito.copy(alpha = 0.2f))
-
-                            FilaDetalleSistema(etiqueta = "Días Restantes:", valor = "${lic.diasRestantes} días de validez", colorValor = VerdeExito, esNegrita = true)
-                            FilaDetalleSistema(etiqueta = "Fecha de Aplicación:", valor = fechaAplicadaTexto)
-                            FilaDetalleSistema(etiqueta = "Fecha de Vencimiento:", valor = fechaVencTexto)
-                            FilaDetalleSistema(etiqueta = "Clave Activa:", valor = lic.clave.chunked(4).joinToString("-"))
                         }
                     }
                     is EstadoLicencia.Vencida -> {
                         val fechaVencTexto = if (lic.fechaVencimiento > 0) sdfCompleto.format(Date(lic.fechaVencimiento)) else "Vencida"
                         val fechaAplicadaTexto = if (lic.fechaActivacion > 0) sdfCompleto.format(Date(lic.fechaActivacion)) else "Desconocida"
 
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(RojoError.copy(alpha = 0.08f))
-                                .border(1.dp, RojoError.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = RojoError.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, RojoError.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(text = "Estado:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GrisSecundario)
-                                Box(
-                                    modifier = Modifier
-                                        .background(RojoError, RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = "● LICENCIA VENCIDA", fontSize = 11.sp, color = Blanco, fontWeight = FontWeight.Bold)
+                                    Text(text = "Estado:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Surface(
+                                        color = RojoError,
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "● LICENCIA VENCIDA",
+                                            fontSize = 11.sp,
+                                            color = Blanco,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
                                 }
+
+                                HorizontalDivider(color = RojoError.copy(alpha = 0.2f))
+
+                                FilaDetalleSistema(etiqueta = "Fecha de Aplicación:", valor = fechaAplicadaTexto)
+                                FilaDetalleSistema(etiqueta = "Venció el:", valor = fechaVencTexto, colorValor = RojoError, esNegrita = true)
                             }
-
-                            HorizontalDivider(color = RojoError.copy(alpha = 0.2f))
-
-                            FilaDetalleSistema(etiqueta = "Fecha de Aplicación:", valor = fechaAplicadaTexto)
-                            FilaDetalleSistema(etiqueta = "Venció el:", valor = fechaVencTexto, colorValor = RojoError, esNegrita = true)
                         }
                     }
                     else -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(AmarilloAdvertencia.copy(alpha = 0.12f))
-                                .border(1.dp, AmarilloAdvertencia.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                .padding(12.dp)
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = AmarilloAdvertencia.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, AmarilloAdvertencia.copy(alpha = 0.35f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "Sin licencia activa registrada. Ingresa una clave para activar el sistema.",
                                 fontSize = 12.sp,
-                                color = GrisTexto,
-                                fontWeight = FontWeight.Medium
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(12.dp)
                             )
                         }
                     }
@@ -1070,7 +1228,7 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
         // --- SECCIÓN APLICACIÓN Y ACTUALIZACIONES ---
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Blanco),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1100,7 +1258,7 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
                 FilaDetalleSistema(etiqueta = "Desarrollador:", valor = "TyPOS Software Studio")
                 FilaDetalleSistema(etiqueta = "Contacto / Soporte:", valor = "soporte@typospos.com")
 
-                HorizontalDivider(color = GrisClaro)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
                 BotonPos(
                     texto = if (estado.estaBuscandoActualizaciones) "Consultando GitHub..." else "Buscar Actualizaciones Ahora",
@@ -1119,9 +1277,11 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
 private fun FilaDetalleSistema(
     etiqueta: String,
     valor: String,
-    colorValor: Color = GrisTexto,
+    colorValor: Color = Color.Unspecified,
     esNegrita: Boolean = false
 ) {
+    val finalColorValor = if (colorValor != Color.Unspecified) colorValor else MaterialTheme.colorScheme.onSurface
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1130,13 +1290,13 @@ private fun FilaDetalleSistema(
         Text(
             text = etiqueta,
             fontSize = 12.sp,
-            color = GrisSecundario,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium
         )
         Text(
             text = valor,
             fontSize = 12.sp,
-            color = colorValor,
+            color = finalColorValor,
             fontWeight = if (esNegrita) FontWeight.Bold else FontWeight.SemiBold
         )
     }

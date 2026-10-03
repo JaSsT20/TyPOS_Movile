@@ -185,6 +185,7 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
 
     fun onModoTemaCambiado(modo: Int) {
         _uiState.update { it.copy(modoTema = modo) }
+        guardarConfiguracion()
     }
 
     fun guardarConfiguracion() {

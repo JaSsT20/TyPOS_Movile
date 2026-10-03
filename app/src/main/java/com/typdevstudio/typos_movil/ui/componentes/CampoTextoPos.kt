@@ -83,19 +83,19 @@ fun CampoTextoPos(
             keyboardOptions = opcionesTeclado,
             keyboardActions = accionesTeclado,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = GrisTexto,
-                unfocusedTextColor = GrisTexto,
-                focusedContainerColor = Blanco,
-                unfocusedContainerColor = Blanco,
-                focusedBorderColor = AzulPrimario,
-                unfocusedBorderColor = GrisMedio,
-                errorBorderColor = RojoError,
-                focusedLabelColor = AzulPrimario,
-                unfocusedLabelColor = GrisSecundario,
-                errorLabelColor = RojoError,
-                cursorColor = AzulPrimario,
-                focusedPlaceholderColor = GrisMedio,
-                unfocusedPlaceholderColor = GrisMedio
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                errorLabelColor = MaterialTheme.colorScheme.error,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         )
 
