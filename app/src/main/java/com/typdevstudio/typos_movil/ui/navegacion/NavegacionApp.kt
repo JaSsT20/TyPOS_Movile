@@ -16,6 +16,8 @@ import com.typdevstudio.typos_movil.ui.configuracion.ConfiguracionViewModel
 import com.typdevstudio.typos_movil.ui.configuracion.PantallaConfiguracion
 import com.typdevstudio.typos_movil.ui.historial.HistorialViewModel
 import com.typdevstudio.typos_movil.ui.historial.PantallaHistorialVentas
+import com.typdevstudio.typos_movil.ui.licencia.DialogoLicenciaBloqueada
+import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
 import com.typdevstudio.typos_movil.ui.login.PantallaLogin
 import com.typdevstudio.typos_movil.ui.principal.PantallaPrincipal
 import com.typdevstudio.typos_movil.ui.productos.PantallaFormularioProducto
@@ -44,16 +46,20 @@ fun NavegacionApp() {
     val ventasViewModel: VentasViewModel = viewModel()
     val configuracionViewModel: ConfiguracionViewModel = viewModel()
     val historialViewModel: HistorialViewModel = viewModel()
+    val licenciaViewModel: LicenciaViewModel = viewModel()
 
     var infoActualizacion by remember { mutableStateOf<InfoActualizacion?>(null) }
 
-    // Verificación automática y no intrusiva de actualizaciones al arrancar la app
+    // 1. Verificación automática y no intrusiva de actualizaciones al arrancar la app
     LaunchedEffect(Unit) {
         val resultado = ActualizadorApp.verificarActualizaciones(contexto)
         if (resultado != null && resultado.hayActualizacion) {
             infoActualizacion = resultado
         }
     }
+
+    // 2. Control estricto de Licenciamiento (Bloquea si no hay licencia o está vencida)
+    DialogoLicenciaBloqueada(viewModel = licenciaViewModel)
 
     // Modal de nueva actualización encontrada al abrir
     infoActualizacion?.let { info ->

@@ -7,11 +7,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.typdevstudio.typos_movil.datos.local.daos.ConfiguracionNegocioDao
+import com.typdevstudio.typos_movil.datos.local.daos.LicenciaDao
 import com.typdevstudio.typos_movil.datos.local.daos.ProductoDao
 import com.typdevstudio.typos_movil.datos.local.daos.UsuarioDao
 import com.typdevstudio.typos_movil.datos.local.daos.VentaDao
 import com.typdevstudio.typos_movil.datos.local.entidades.ConfiguracionNegocioEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.DetalleVentaEntidad
+import com.typdevstudio.typos_movil.datos.local.entidades.LicenciaEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.UsuarioEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.VentaEntidad
@@ -25,15 +27,36 @@ val MIGRACION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRACION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `licencia` (
+                `id` INTEGER NOT NULL,
+                `clave_licencia` TEXT NOT NULL,
+                `fecha_emision` INTEGER NOT NULL,
+                `fecha_activacion` INTEGER NOT NULL,
+                `fecha_vencimiento` INTEGER NOT NULL,
+                `dias_totales` INTEGER NOT NULL,
+                `estado` TEXT NOT NULL,
+                `ultima_fecha_uso` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent()
+        )
+    }
+}
+
 @Database(
     entities = [
         UsuarioEntidad::class,
         ProductoEntidad::class,
         VentaEntidad::class,
         DetalleVentaEntidad::class,
-        ConfiguracionNegocioEntidad::class
+        ConfiguracionNegocioEntidad::class,
+        LicenciaEntidad::class
     ],
-    version = 6, // Versión 6: Campo modo_tema en ConfiguracionNegocioEntidad
+    version = 7, // Versión 7: Tabla licencia para control offline
     exportSchema = false
 )
 abstract class AppBaseDatos : RoomDatabase() {
@@ -42,6 +65,7 @@ abstract class AppBaseDatos : RoomDatabase() {
     abstract fun productoDao(): ProductoDao
     abstract fun ventaDao(): VentaDao
     abstract fun configuracionNegocioDao(): ConfiguracionNegocioDao
+    abstract fun licenciaDao(): LicenciaDao
 
     companion object {
         @Volatile
@@ -54,7 +78,7 @@ abstract class AppBaseDatos : RoomDatabase() {
                     AppBaseDatos::class.java,
                     "typos_movil_bd.db"
                 )
-                    .addMigrations(MIGRACION_5_6)
+                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7)
                     .addCallback(CallbackInicial(contexto))
                     .fallbackToDestructiveMigration()
                     .build()

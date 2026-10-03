@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
+import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
+
 data class ConfiguracionUiState(
     val nombreNegocio: String = "Mi Tienda",
     val rncCedula: String = "",
@@ -29,6 +32,9 @@ data class ConfiguracionUiState(
     val columnasPersonalizadas: Int = 32,
     val modoTema: Int = 0, // 0: Sistema, 1: Claro, 2: Oscuro
     val dispositivosDisponibles: List<DispositivoBluetoothPos> = emptyList(),
+    val estadoLicencia: EstadoLicencia = EstadoLicencia.SinLicencia,
+    val claveLicenciaNueva: String = "",
+    val estaActivandoLicencia: Boolean = false,
     val estaGuardando: Boolean = false,
     val estaImprimiendoPrueba: Boolean = false,
     val estaBuscandoActualizaciones: Boolean = false,
@@ -41,10 +47,12 @@ data class ConfiguracionUiState(
 class ConfiguracionViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repositorio: ConfiguracionRepositorio
+    private val licenciaRepositorio: LicenciaRepositorio
 
     init {
         val bd = AppBaseDatos.obtenerBaseDatos(application)
         repositorio = ConfiguracionRepositorio(bd.configuracionNegocioDao())
+        licenciaRepositorio = LicenciaRepositorio(bd.licenciaDao())
         cargarConfiguracion()
     }
 
@@ -54,6 +62,7 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
     fun cargarConfiguracion() {
         viewModelScope.launch {
             val config = repositorio.obtenerConfiguracionDirecta()
+            val estadoLic = licenciaRepositorio.verificarEstadoLicencia()
             val mmTexto = if (config.tamanoPapelImpresora > 0) config.tamanoPapelImpresora.toString() else "58"
             _uiState.update {
                 it.copy(
@@ -67,7 +76,8 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                     tamanoPapel = config.tamanoPapelImpresora,
                     anchoMilimetrosPersonalizado = mmTexto,
                     columnasPersonalizadas = config.columnasPersonalizadas,
-                    modoTema = config.modoTema
+                    modoTema = config.modoTema,
+                    estadoLicencia = estadoLic
                 )
             }
             buscarDispositivosBluetooth()
@@ -329,6 +339,51 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
         val contexto = getApplication<Application>()
         com.typdevstudio.typos_movil.utilidades.actualizador.ActualizadorApp.iniciarDescarga(contexto, url)
         _uiState.update { it.copy(infoActualizacion = null) }
+    }
+
+    fun onClaveLicenciaNuevaCambiada(clave: String) {
+        val soloAlfanumerico = clave.replace("-", "").replace(" ", "").trim().uppercase().take(16)
+        val formateada = soloAlfanumerico.chunked(4).joinToString("-")
+        _uiState.update { it.copy(claveLicenciaNueva = formateada) }
+    }
+
+    fun activarLicenciaNueva() {
+        val clave = _uiState.value.claveLicenciaNueva.trim()
+        if (clave.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    mensajeAlerta = "Por favor ingresa la clave de licencia de 16 caracteres",
+                    esErrorAlerta = true
+                )
+            }
+            return
+        }
+
+        _uiState.update { it.copy(estaActivandoLicencia = true, mensajeAlerta = null) }
+
+        viewModelScope.launch {
+            val resultado = licenciaRepositorio.activarLicencia(clave)
+            if (resultado.esValida && !resultado.estaVencida) {
+                val nuevoEstado = licenciaRepositorio.verificarEstadoLicencia()
+                _uiState.update {
+                    it.copy(
+                        estaActivandoLicencia = false,
+                        estadoLicencia = nuevoEstado,
+                        claveLicenciaNueva = "",
+                        mensajeAlerta = "¡Licencia activada con éxito! Válida por ${resultado.diasValidez} días.",
+                        esErrorAlerta = false
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        estaActivandoLicencia = false,
+                        mensajeAlerta = resultado.mensajeError.ifBlank { "Clave de licencia incorrecta o inválida" },
+                        esErrorAlerta = true
+                    )
+                }
+            }
+        }
     }
 
     fun limpiarAlerta() {

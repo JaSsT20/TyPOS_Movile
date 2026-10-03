@@ -47,10 +47,17 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.CloudDownload
+import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -727,7 +734,150 @@ fun PantallaConfiguracion(
                 }
             }
 
-            // Sección 5: Actualizaciones y Versión
+            // Sección 5: Licencia y Suscripción
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Blanco),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(AzulPrimarioClaro.copy(alpha = 0.3f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Key,
+                                contentDescription = null,
+                                tint = AzulPrimario,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Licencia del Sistema",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GrisTexto
+                            )
+                            Text(
+                                text = "Estado de tu suscripción y activación",
+                                fontSize = 12.sp,
+                                color = GrisSecundario
+                            )
+                        }
+                    }
+
+                    // Estado actual de la licencia
+                    when (val lic = estado.estadoLicencia) {
+                        is EstadoLicencia.Activa -> {
+                            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                            val fechaVenc = sdf.format(Date(lic.fechaVencimiento))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(VerdeExito.copy(alpha = 0.12f))
+                                    .border(1.dp, VerdeExito.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .padding(12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = "ESTADO:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GrisSecundario)
+                                        Box(
+                                            modifier = Modifier
+                                                .background(VerdeExito, RoundedCornerShape(4.dp))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("LICENCIA ACTIVA", fontSize = 10.sp, color = Blanco, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    Text(
+                                        text = "Vence: $fechaVenc (${lic.diasRestantes} días restantes)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = GrisTexto
+                                    )
+                                    Text(
+                                        text = "Clave: ${lic.clave.chunked(4).joinToString("-")}",
+                                        fontSize = 11.sp,
+                                        color = GrisSecundario
+                                    )
+                                }
+                            }
+                        }
+                        is EstadoLicencia.Vencida -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(RojoError.copy(alpha = 0.12f))
+                                    .border(1.dp, RojoError.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = "Tu licencia ha vencido. Ingresa una nueva clave para reactivar.",
+                                    fontSize = 12.sp,
+                                    color = RojoError,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        else -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(AmarilloAdvertencia.copy(alpha = 0.12f))
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = "Sin licencia activa registrada.",
+                                    fontSize = 12.sp,
+                                    color = GrisTexto,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    // Formulario para extender o ingresar nueva clave
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CampoTextoPos(
+                            valor = estado.claveLicenciaNueva,
+                            alCambiarValor = { viewModel.onClaveLicenciaNuevaCambiada(it) },
+                            etiqueta = "Ingresar / Renovar Clave de Licencia",
+                            iconoInicio = Icons.Filled.Key
+                        )
+
+                        BotonPos(
+                            texto = "Activar / Renovar Licencia",
+                            alHacerClic = { viewModel.activarLicenciaNueva() },
+                            estaCargando = estado.estaActivandoLicencia,
+                            icono = Icons.Filled.Verified,
+                            variante = VarianteBoton.EXITO,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            // Sección 6: Actualizaciones y Versión
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Blanco),
