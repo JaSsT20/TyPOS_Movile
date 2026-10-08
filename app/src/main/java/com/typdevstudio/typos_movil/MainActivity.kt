@@ -17,6 +17,9 @@ class MainActivity : ComponentActivity() {
         val bd = AppBaseDatos.obtenerBaseDatos(this)
         val configuracionFlow = bd.configuracionNegocioDao().obtenerConfiguracion()
 
+        // Asegurar que la alarma para el backup diario de las 7:30 PM esté programada
+        com.typdevstudio.typos_movil.utilidades.backup.PlanificadorBackupDiario.programarBackupDiario(this)
+
         setContent {
             val config by configuracionFlow.collectAsState(initial = null)
             val modoTema = config?.modoTema ?: 0

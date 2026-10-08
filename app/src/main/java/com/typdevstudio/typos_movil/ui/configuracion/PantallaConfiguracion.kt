@@ -45,6 +45,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.BluetoothDisabled
@@ -125,6 +126,9 @@ import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
 import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
+import com.typdevstudio.typos_movil.ui.configuracion.backup.SubPantallaCopiasSeguridad
+import com.typdevstudio.typos_movil.ui.configuracion.importacion.PantallaImportarProductos
+import com.typdevstudio.typos_movil.ui.configuracion.importacion.SubPantallaImportarDatos
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -134,6 +138,9 @@ enum class SeccionConfiguracion(val titulo: String) {
     APARIENCIA("Apariencia y Tema"),
     NEGOCIO("Datos del Negocio"),
     IMPRESORA("Impresora de Tickets"),
+    IMPORTAR_DATOS("Importar Datos"),
+    IMPORTAR_PRODUCTOS("Importar Productos"),
+    COPIAS_SEGURIDAD("Copias de Seguridad"),
     INFO_SISTEMA("Información del Sistema")
 }
 
@@ -141,7 +148,8 @@ enum class SeccionConfiguracion(val titulo: String) {
 @Composable
 fun PantallaConfiguracion(
     viewModel: ConfiguracionViewModel,
-    alVolver: () -> Unit
+    alVolver: () -> Unit,
+    alNavegarAProductos: () -> Unit = {}
 ) {
     val estado by viewModel.uiState.collectAsState()
     val contexto = LocalContext.current
@@ -149,7 +157,11 @@ fun PantallaConfiguracion(
 
     // Manejo del botón físico/gesto de atrás
     BackHandler(enabled = seccionActual != SeccionConfiguracion.MENU_PRINCIPAL) {
-        seccionActual = SeccionConfiguracion.MENU_PRINCIPAL
+        if (seccionActual == SeccionConfiguracion.IMPORTAR_PRODUCTOS) {
+            seccionActual = SeccionConfiguracion.IMPORTAR_DATOS
+        } else {
+            seccionActual = SeccionConfiguracion.MENU_PRINCIPAL
+        }
     }
 
     val launcherPermisoBluetooth = rememberLauncherForActivityResult(
@@ -170,33 +182,37 @@ fun PantallaConfiguracion(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = seccionActual.titulo,
-                        fontWeight = FontWeight.Bold,
-                        color = Blanco
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            if (seccionActual == SeccionConfiguracion.MENU_PRINCIPAL) {
-                                alVolver()
-                            } else {
-                                seccionActual = SeccionConfiguracion.MENU_PRINCIPAL
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = Blanco
+            if (seccionActual != SeccionConfiguracion.IMPORTAR_PRODUCTOS) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = seccionActual.titulo,
+                            fontWeight = FontWeight.Bold,
+                            color = Blanco
                         )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AzulPrimario)
-            )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                if (seccionActual == SeccionConfiguracion.MENU_PRINCIPAL) {
+                                    alVolver()
+                                } else if (seccionActual == SeccionConfiguracion.IMPORTAR_PRODUCTOS) {
+                                    seccionActual = SeccionConfiguracion.IMPORTAR_DATOS
+                                } else {
+                                    seccionActual = SeccionConfiguracion.MENU_PRINCIPAL
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Volver",
+                                tint = Blanco
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AzulPrimario)
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValores ->
@@ -206,7 +222,7 @@ fun PantallaConfiguracion(
                 .padding(paddingValores)
         ) {
             // Banner de Alerta Activa: visible en cualquier ventana donde ocurra la acción
-            AnimatedVisibility(visible = estado.mensajeAlerta != null) {
+            AnimatedVisibility(visible = estado.mensajeAlerta != null && seccionActual != SeccionConfiguracion.IMPORTAR_PRODUCTOS) {
                 estado.mensajeAlerta?.let { mensaje ->
                     BannerAlerta(
                         mensaje = mensaje,
@@ -247,6 +263,24 @@ fun PantallaConfiguracion(
                         }
                         SeccionConfiguracion.IMPRESORA -> {
                             SubPantallaImpresora(viewModel = viewModel, estado = estado)
+                        }
+                        SeccionConfiguracion.IMPORTAR_DATOS -> {
+                            SubPantallaImportarDatos(
+                                alSeleccionarImportarProductos = {
+                                    seccionActual = SeccionConfiguracion.IMPORTAR_PRODUCTOS
+                                }
+                            )
+                        }
+                        SeccionConfiguracion.IMPORTAR_PRODUCTOS -> {
+                            PantallaImportarProductos(
+                                alVolver = {
+                                    seccionActual = SeccionConfiguracion.IMPORTAR_DATOS
+                                },
+                                alVerCatalogo = alNavegarAProductos
+                            )
+                        }
+                        SeccionConfiguracion.COPIAS_SEGURIDAD -> {
+                            SubPantallaCopiasSeguridad()
                         }
                         SeccionConfiguracion.INFO_SISTEMA -> {
                             SubPantallaInfoSistema(viewModel = viewModel, estado = estado)
@@ -399,7 +433,35 @@ private fun MenuPrincipalConfiguracion(
             }
         }
 
-        // --- GRUPO 3: SISTEMA Y SOPORTE ---
+        // --- GRUPO 3: DATOS Y RESPALDOS ---
+        Card(
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column {
+                ItemMenuAjustes(
+                    icono = Icons.Filled.CloudDownload,
+                    colorIcono = Color(0xFF00ACC1), // Cyan / Teal moderno
+                    titulo = "Importar Datos",
+                    subtitulo = "Importar productos desde plantilla Excel / CSV",
+                    alHacerClic = { alSeleccionarSeccion(SeccionConfiguracion.IMPORTAR_DATOS) },
+                    mostrarDivisor = true
+                )
+
+                ItemMenuAjustes(
+                    icono = Icons.Filled.Backup,
+                    colorIcono = Color(0xFF673AB7), // Púrpura Deep Purple
+                    titulo = "Copias de Seguridad",
+                    subtitulo = "Respaldo automático 7:30 PM • Copias manuales y restauración",
+                    alHacerClic = { alSeleccionarSeccion(SeccionConfiguracion.COPIAS_SEGURIDAD) },
+                    mostrarDivisor = false
+                )
+            }
+        }
+
+        // --- GRUPO 4: SISTEMA Y SOPORTE ---
         Card(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

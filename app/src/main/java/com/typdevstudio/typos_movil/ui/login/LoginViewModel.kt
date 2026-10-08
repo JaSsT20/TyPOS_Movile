@@ -7,8 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
 import com.typdevstudio.typos_movil.datos.local.entidades.UsuarioEntidad
+import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
+import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
 import com.typdevstudio.typos_movil.datos.repositorio.ResultadoAutenticacion
 import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
+import com.typdevstudio.typos_movil.utilidades.licencia.IdDispositivo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +33,8 @@ data class LoginUiState(
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     val repositorio: UsuarioRepositorio
+    val licenciaRepositorio: LicenciaRepositorio
+    private val serialDispositivo: String = IdDispositivo.obtenerSerialDispositivo(application)
     private val prefs = application.getSharedPreferences("typos_credenciales_pref", Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -38,6 +43,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     init {
         val baseDatos = AppBaseDatos.obtenerBaseDatos(application)
         repositorio = UsuarioRepositorio(baseDatos.usuarioDao())
+        licenciaRepositorio = LicenciaRepositorio(baseDatos.licenciaDao(), serialDispositivo)
         cargarCredencialesGuardadas()
     }
 
@@ -136,6 +142,24 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(estaCargando = true, mensajeErrorGeneral = null, mensajeExito = null) }
 
         viewModelScope.launch {
+            // 1. Control estricto de licenciamiento: Bloquear si no hay licencia o está vencida
+            val estadoLicencia = licenciaRepositorio.verificarEstadoLicencia()
+            if (estadoLicencia !is EstadoLicencia.Activa) {
+                val mensajeBloqueo = when (estadoLicencia) {
+                    is EstadoLicencia.Vencida -> "Tu licencia ha vencido. Debes renovarla para poder iniciar sesión."
+                    is EstadoLicencia.RelojAlterado -> "Fecha del sistema alterada. Sincroniza la hora de red para continuar."
+                    else -> "Este dispositivo requiere una licencia activa para iniciar sesión."
+                }
+                _uiState.update {
+                    it.copy(
+                        estaCargando = false,
+                        mensajeErrorGeneral = mensajeBloqueo
+                    )
+                }
+                return@launch
+            }
+
+            // 2. Autenticar credenciales
             val resultado = repositorio.autenticar(usuarioTrim, claveTrim)
             when (resultado) {
                 is ResultadoAutenticacion.Exito -> {

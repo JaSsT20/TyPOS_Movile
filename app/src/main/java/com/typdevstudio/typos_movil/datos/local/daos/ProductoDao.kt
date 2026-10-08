@@ -26,6 +26,12 @@ interface ProductoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertar(producto: ProductoEntidad): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertarTodos(productos: List<ProductoEntidad>): List<Long>
+
+    @Query("SELECT * FROM productos WHERE esta_activo = 1")
+    suspend fun obtenerTodosDirecto(): List<ProductoEntidad>
+
     @Update
     suspend fun actualizar(producto: ProductoEntidad)
 

@@ -11,6 +11,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.collectAsState
+import com.typdevstudio.typos_movil.datos.local.GestorSesion
+import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
 import com.typdevstudio.typos_movil.ui.componentes.DialogoActualizacion
 import com.typdevstudio.typos_movil.ui.configuracion.ConfiguracionViewModel
 import com.typdevstudio.typos_movil.ui.configuracion.PantallaConfiguracion
@@ -48,6 +51,7 @@ fun NavegacionApp() {
     val historialViewModel: HistorialViewModel = viewModel()
     val licenciaViewModel: LicenciaViewModel = viewModel()
 
+    val estadoLicenciaUi by licenciaViewModel.uiState.collectAsState()
     var infoActualizacion by remember { mutableStateOf<InfoActualizacion?>(null) }
 
     // 1. Verificación automática y no intrusiva de actualizaciones al arrancar la app
@@ -58,7 +62,19 @@ fun NavegacionApp() {
         }
     }
 
-    // 2. Control estricto de Licenciamiento (Bloquea si no hay licencia o está vencida)
+    // 2. Control reactivo de caducidad: Si la licencia expira, forzar salida inmediata al Login
+    LaunchedEffect(estadoLicenciaUi.estado, estadoLicenciaUi.estaVerificandoInicial) {
+        if (!estadoLicenciaUi.estaVerificandoInicial && estadoLicenciaUi.estado !is EstadoLicencia.Activa) {
+            if (GestorSesion.usuarioActivo.value != null) {
+                GestorSesion.cerrarSesion()
+                controladorNavegacion.navigate(Ruta.Login.ruta) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+    }
+
+    // 3. Control estricto de Licenciamiento (Modal no descartable de bloqueo si no hay licencia o está vencida)
     DialogoLicenciaBloqueada(viewModel = licenciaViewModel)
 
     // Modal de nueva actualización encontrada al abrir
@@ -158,6 +174,9 @@ fun NavegacionApp() {
                 viewModel = configuracionViewModel,
                 alVolver = {
                     controladorNavegacion.popBackStack()
+                },
+                alNavegarAProductos = {
+                    controladorNavegacion.navigate(Ruta.Productos.ruta)
                 }
             )
         }

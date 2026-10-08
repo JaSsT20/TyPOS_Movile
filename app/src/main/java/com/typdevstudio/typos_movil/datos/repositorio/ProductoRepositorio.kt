@@ -35,6 +35,15 @@ class ProductoRepositorio(private val productoDao: ProductoDao) {
         }
     }
 
+    suspend fun guardarProductosEnLote(productos: List<ProductoEntidad>): Int = withContext(Dispatchers.IO) {
+        if (productos.isEmpty()) return@withContext 0
+        productoDao.insertarTodos(productos).size
+    }
+
+    suspend fun obtenerTodosDirecto(): List<ProductoEntidad> = withContext(Dispatchers.IO) {
+        productoDao.obtenerTodosDirecto()
+    }
+
     suspend fun eliminarProducto(id: Long) = withContext(Dispatchers.IO) {
         productoDao.desactivar(id)
     }
