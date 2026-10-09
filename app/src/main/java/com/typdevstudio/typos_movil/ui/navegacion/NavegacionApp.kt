@@ -1,7 +1,15 @@
 package com.typdevstudio.typos_movil.ui.navegacion
 
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,7 +19,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.collectAsState
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
 import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
 import com.typdevstudio.typos_movil.ui.componentes.DialogoActualizacion
@@ -87,9 +94,30 @@ fun NavegacionApp() {
         }
     }
 
+    // Transición profesional sutil y fluida (Fade suave con desplazamiento mínimo de 4% sin movimientos bruscos)
     NavHost(
         navController = controladorNavegacion,
-        startDestination = Ruta.Login.ruta
+        startDestination = Ruta.Login.ruta,
+        enterTransition = {
+            fadeIn(animationSpec = tween(150, easing = LinearOutSlowInEasing)) +
+            slideInHorizontally(
+                initialOffsetX = { (it * 0.04f).toInt() },
+                animationSpec = tween(160, easing = FastOutSlowInEasing)
+            )
+        },
+        exitTransition = {
+            fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing))
+        },
+        popEnterTransition = {
+            fadeIn(animationSpec = tween(150, easing = LinearOutSlowInEasing)) +
+            slideInHorizontally(
+                initialOffsetX = { -(it * 0.04f).toInt() },
+                animationSpec = tween(160, easing = FastOutSlowInEasing)
+            )
+        },
+        popExitTransition = {
+            fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing))
+        }
     ) {
         composable(Ruta.Login.ruta) {
             PantallaLogin(
