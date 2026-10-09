@@ -37,6 +37,7 @@ data class FormularioProductoUiState(
     val stock: String = "0",
     val controlaStock: Boolean = true,
     val categoria: String = "General",
+    val imagenes: List<String> = emptyList(),
     val errorNombre: String? = null,
     val errorPrecioVenta: String? = null,
     val errorPrecioCosto: String? = null,
@@ -143,8 +144,35 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
             tasaItbis = producto.tasaItbis,
             stock = producto.stock.toString(),
             controlaStock = producto.controlaStock,
-            categoria = producto.categoria
+            categoria = producto.categoria,
+            imagenes = producto.listaImagenes
         )
+    }
+
+    fun onImagenesAgregadas(nuevasRutas: List<String>) {
+        _formularioState.update { estado ->
+            val listaCombinada = (estado.imagenes + nuevasRutas).distinct().take(3)
+            estado.copy(imagenes = listaCombinada)
+        }
+    }
+
+    fun onEliminarImagen(indice: Int) {
+        _formularioState.update { estado ->
+            if (indice in estado.imagenes.indices) {
+                val nuevaLista = estado.imagenes.toMutableList().apply { removeAt(indice) }
+                estado.copy(imagenes = nuevaLista)
+            } else estado
+        }
+    }
+
+    fun onMoverImagenAPrincipal(indice: Int) {
+        _formularioState.update { estado ->
+            if (indice in 1 until estado.imagenes.size) {
+                val elemento = estado.imagenes[indice]
+                val nuevaLista = mutableListOf(elemento) + estado.imagenes.filterIndexed { i, _ -> i != indice }
+                estado.copy(imagenes = nuevaLista)
+            } else estado
+        }
     }
 
     fun onNombreCambiado(nombre: String) {
@@ -238,6 +266,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
                     controlaStock = estado.controlaStock,
                     categoria = estado.categoria.trim().ifEmpty { "General" },
                     estaActivo = true,
+                    imagenesUri = if (estado.imagenes.isNotEmpty()) estado.imagenes.joinToString(",") else null,
                     actualizadoEn = System.currentTimeMillis()
                 )
 

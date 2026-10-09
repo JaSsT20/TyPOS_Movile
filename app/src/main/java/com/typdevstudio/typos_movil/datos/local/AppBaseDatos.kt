@@ -53,6 +53,26 @@ val MIGRACION_7_8 = object : Migration(7, 8) {
     }
 }
 
+val MIGRACION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN slogan TEXT")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN tamano_nombre_negocio INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_slogan INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN posicion_rnc INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN posicion_direccion INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN posicion_telefono INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_cajero INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_cliente INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_powered_by INTEGER NOT NULL DEFAULT 1")
+    }
+}
+
+val MIGRACION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE productos ADD COLUMN imagenes_uri TEXT")
+    }
+}
+
 @Database(
     entities = [
         UsuarioEntidad::class,
@@ -62,7 +82,7 @@ val MIGRACION_7_8 = object : Migration(7, 8) {
         ConfiguracionNegocioEntidad::class,
         LicenciaEntidad::class
     ],
-    version = 8, // Versión 8: Columna foto_uri en tabla usuarios
+    version = 10, // Versión 10: Soporte para imágenes de productos (hasta 3 fotos)
     exportSchema = false
 )
 abstract class AppBaseDatos : RoomDatabase() {
@@ -84,7 +104,7 @@ abstract class AppBaseDatos : RoomDatabase() {
                     AppBaseDatos::class.java,
                     "typos_movil_bd.db"
                 )
-                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8)
+                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10)
                     .addCallback(CallbackInicial(contexto))
                     .fallbackToDestructiveMigration()
                     .build()

@@ -394,22 +394,15 @@ fun TarjetaProductoModerna(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icono / Avatar con la inicial del producto
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(AzulPrimarioClaro.copy(alpha = 0.35f), shape = RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = producto.nombre.take(1).uppercase(),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AzulPrimario
-                )
-            }
+            // Icono / Miniatura con la foto o inicial del producto
+            com.typdevstudio.typos_movil.utilidades.MiniaturaProducto(
+                fotoUri = producto.imagenPrincipal,
+                nombre = producto.nombre,
+                tamano = 46.dp,
+                forma = RoundedCornerShape(12.dp)
+            )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             // Información central con margen para no invadir botones
             Column(

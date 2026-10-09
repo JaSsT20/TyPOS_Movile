@@ -66,9 +66,18 @@ data class ProductoEntidad(
     @ColumnInfo(name = "esta_activo")
     val estaActivo: Boolean = true,
 
+    @ColumnInfo(name = "imagenes_uri")
+    val imagenesUri: String? = null,
+
     @ColumnInfo(name = "creado_en")
     val creadoEn: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "actualizado_en")
     val actualizadoEn: Long = System.currentTimeMillis()
-)
+) {
+    val listaImagenes: List<String>
+        get() = imagenesUri?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+
+    val imagenPrincipal: String?
+        get() = listaImagenes.firstOrNull()
+}
