@@ -21,10 +21,20 @@ import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
 
 data class ConfiguracionUiState(
     val nombreNegocio: String = "Mi Tienda",
+    val slogan: String = "",
+    val tamanoNombreNegocio: Int = 1, // 0: Normal, 1: Mediano/Doble Alto (Recomendado), 2: Grande
+    val mostrarSlogan: Boolean = true,
     val rncCedula: String = "",
+    val posicionRnc: Int = 0, // 0: Encabezado, 1: Ocultar
     val direccion: String = "",
+    val posicionDireccion: Int = 0, // 0: Encabezado, 1: Pie de Página, 2: Ocultar
     val telefono: String = "",
+    val posicionTelefono: Int = 0, // 0: Encabezado, 1: Pie de Página, 2: Ocultar
+    val mostrarCajero: Boolean = true,
+    val mostrarCliente: Boolean = true,
     val pieTicket: String = "¡Gracias por su compra!",
+    val mostrarPoweredBy: Boolean = true,
+    val textoPoweredBy: String = "Powered by TyPOS Móvil",
     val nombreImpresora: String? = null,
     val direccionMacImpresora: String? = null,
     val tamanoPapel: Int = 58, // 58, 80, 57, 72 o 0 (Personalizado)
@@ -69,10 +79,20 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
             _uiState.update {
                 it.copy(
                     nombreNegocio = config.nombreNegocio,
+                    slogan = config.slogan ?: "",
+                    tamanoNombreNegocio = config.tamanoNombreNegocio,
+                    mostrarSlogan = config.mostrarSlogan,
                     rncCedula = config.rncCedula ?: "",
+                    posicionRnc = config.posicionRnc,
                     direccion = config.direccion ?: "",
+                    posicionDireccion = config.posicionDireccion,
                     telefono = config.telefono ?: "",
+                    posicionTelefono = config.posicionTelefono,
+                    mostrarCajero = config.mostrarCajero,
+                    mostrarCliente = config.mostrarCliente,
                     pieTicket = config.pieTicket,
+                    mostrarPoweredBy = config.mostrarPoweredBy,
+                    textoPoweredBy = config.textoPoweredBy,
                     nombreImpresora = config.nombreImpresora,
                     direccionMacImpresora = config.direccionMacImpresora,
                     tamanoPapel = config.tamanoPapelImpresora,
@@ -95,20 +115,60 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
         _uiState.update { it.copy(nombreNegocio = nombre) }
     }
 
+    fun onSloganCambiado(slogan: String) {
+        _uiState.update { it.copy(slogan = slogan) }
+    }
+
+    fun onTamanoNombreNegocioCambiado(tamano: Int) {
+        _uiState.update { it.copy(tamanoNombreNegocio = tamano) }
+    }
+
+    fun onMostrarSloganCambiado(mostrar: Boolean) {
+        _uiState.update { it.copy(mostrarSlogan = mostrar) }
+    }
+
     fun onRncCedulaCambiado(rnc: String) {
         _uiState.update { it.copy(rncCedula = rnc) }
+    }
+
+    fun onPosicionRncCambiada(posicion: Int) {
+        _uiState.update { it.copy(posicionRnc = posicion) }
     }
 
     fun onDireccionCambiada(dir: String) {
         _uiState.update { it.copy(direccion = dir) }
     }
 
+    fun onPosicionDireccionCambiada(posicion: Int) {
+        _uiState.update { it.copy(posicionDireccion = posicion) }
+    }
+
     fun onTelefonoCambiado(tel: String) {
         _uiState.update { it.copy(telefono = tel) }
     }
 
+    fun onPosicionTelefonoCambiada(posicion: Int) {
+        _uiState.update { it.copy(posicionTelefono = posicion) }
+    }
+
+    fun onMostrarCajeroCambiado(mostrar: Boolean) {
+        _uiState.update { it.copy(mostrarCajero = mostrar) }
+    }
+
+    fun onMostrarClienteCambiado(mostrar: Boolean) {
+        _uiState.update { it.copy(mostrarCliente = mostrar) }
+    }
+
     fun onPieTicketCambiado(pie: String) {
         _uiState.update { it.copy(pieTicket = pie) }
+    }
+
+    fun onMostrarPoweredByCambiado(mostrar: Boolean) {
+        _uiState.update { it.copy(mostrarPoweredBy = mostrar) }
+    }
+
+    fun onTextoPoweredByCambiado(texto: String) {
+        _uiState.update { it.copy(textoPoweredBy = texto) }
     }
 
     fun onTamanoPapelPresetSeleccionado(tamanoMm: Int) {
@@ -200,10 +260,20 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                 val entidad = ConfiguracionNegocioEntidad(
                     id = 1,
                     nombreNegocio = nombreNegocioTrim,
+                    slogan = estado.slogan.trim().ifEmpty { null },
+                    tamanoNombreNegocio = estado.tamanoNombreNegocio,
+                    mostrarSlogan = estado.mostrarSlogan,
                     rncCedula = estado.rncCedula.trim().ifEmpty { null },
+                    posicionRnc = estado.posicionRnc,
                     direccion = estado.direccion.trim().ifEmpty { null },
+                    posicionDireccion = estado.posicionDireccion,
                     telefono = estado.telefono.trim().ifEmpty { null },
+                    posicionTelefono = estado.posicionTelefono,
+                    mostrarCajero = estado.mostrarCajero,
+                    mostrarCliente = estado.mostrarCliente,
                     pieTicket = estado.pieTicket.trim().ifEmpty { "¡Gracias por su compra!" },
+                    mostrarPoweredBy = true,
+                    textoPoweredBy = "Powered by TyPOS Móvil",
                     nombreImpresora = estado.nombreImpresora,
                     direccionMacImpresora = estado.direccionMacImpresora,
                     tamanoPapelImpresora = mmInt,
@@ -252,10 +322,20 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
             val entidad = ConfiguracionNegocioEntidad(
                 id = 1,
                 nombreNegocio = estado.nombreNegocio,
-                rncCedula = estado.rncCedula,
-                direccion = estado.direccion,
-                telefono = estado.telefono,
-                pieTicket = estado.pieTicket,
+                slogan = estado.slogan.trim().ifEmpty { null },
+                tamanoNombreNegocio = estado.tamanoNombreNegocio,
+                mostrarSlogan = estado.mostrarSlogan,
+                rncCedula = estado.rncCedula.trim().ifEmpty { null },
+                posicionRnc = estado.posicionRnc,
+                direccion = estado.direccion.trim().ifEmpty { null },
+                posicionDireccion = estado.posicionDireccion,
+                telefono = estado.telefono.trim().ifEmpty { null },
+                posicionTelefono = estado.posicionTelefono,
+                mostrarCajero = estado.mostrarCajero,
+                mostrarCliente = estado.mostrarCliente,
+                pieTicket = estado.pieTicket.trim().ifEmpty { "¡Gracias por su compra!" },
+                mostrarPoweredBy = true,
+                textoPoweredBy = "Powered by TyPOS Móvil",
                 nombreImpresora = estado.nombreImpresora,
                 direccionMacImpresora = mac,
                 tamanoPapelImpresora = mmInt,

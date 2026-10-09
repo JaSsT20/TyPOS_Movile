@@ -33,13 +33,18 @@ object ServicioImpresoraBluetooth {
 
     // Comandos ESC/POS estándar
     private val COMANDO_INICIALIZAR = byteArrayOf(0x1B, 0x40)
+    private val COMANDO_CODEPAGE_CP850 = CodificadorEscPos.COMANDO_SELECCIONAR_CP850
     private val COMANDO_ALINEAR_IZQ = byteArrayOf(0x1B, 0x61, 0x00)
     private val COMANDO_ALINEAR_CENTRO = byteArrayOf(0x1B, 0x61, 0x01)
     private val COMANDO_ALINEAR_DER = byteArrayOf(0x1B, 0x61, 0x02)
     private val COMANDO_NEGRITA_ON = byteArrayOf(0x1B, 0x45, 0x01)
     private val COMANDO_NEGRITA_OFF = byteArrayOf(0x1B, 0x45, 0x00)
-    private val COMANDO_TAMANO_DOBLE = byteArrayOf(0x1D, 0x21, 0x11)
     private val COMANDO_TAMANO_NORMAL = byteArrayOf(0x1D, 0x21, 0x00)
+    private val COMANDO_TAMANO_DOBLE_ALTO = byteArrayOf(0x1D, 0x21, 0x01) // 1x ancho, 2x alto (Recomendado)
+    private val COMANDO_TAMANO_DOBLE_ANCHO = byteArrayOf(0x1D, 0x21, 0x10) // 2x ancho, 1x alto
+    private val COMANDO_TAMANO_DOBLE = byteArrayOf(0x1D, 0x21, 0x11) // 2x ancho, 2x alto
+    private val COMANDO_FUENTE_B = byteArrayOf(0x1B, 0x4D, 0x01) // Fuente B (más pequeña para branding discreto)
+    private val COMANDO_FUENTE_A = byteArrayOf(0x1B, 0x4D, 0x00) // Fuente A (estándar)
 
     fun calcularAnchoColumnas(configuracion: ConfiguracionNegocioEntidad): Int {
         return if (configuracion.columnasPersonalizadas in 16..80) {
@@ -141,6 +146,10 @@ object ServicioImpresoraBluetooth {
         }
     }
 
+    private fun ByteArrayOutputStream.escribirTexto(texto: String) {
+        this.write(CodificadorEscPos.aBytes(texto))
+    }
+
     private fun generarBytesTicketPrueba(
         configuracion: ConfiguracionNegocioEntidad
     ): ByteArray {
@@ -149,23 +158,52 @@ object ServicioImpresoraBluetooth {
         val buffer = ByteArrayOutputStream()
 
         buffer.write(COMANDO_INICIALIZAR)
+        buffer.write(COMANDO_CODEPAGE_CP850)
         buffer.write(COMANDO_ALINEAR_CENTRO)
-        buffer.write(COMANDO_TAMANO_DOBLE)
-        buffer.write("${configuracion.nombreNegocio}\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write(COMANDO_TAMANO_NORMAL)
 
-        buffer.write("IMPRESION DE PRUEBA\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
+        // Nombre según tamaño configurado
+        when (configuracion.tamanoNombreNegocio) {
+            0 -> {
+                buffer.write(COMANDO_TAMANO_NORMAL)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+            1 -> {
+                buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+            2 -> {
+                buffer.write(COMANDO_TAMANO_DOBLE)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+            else -> {
+                buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+        }
+        buffer.escribirTexto("${configuracion.nombreNegocio}\n")
+        buffer.write(COMANDO_TAMANO_NORMAL)
+        buffer.write(COMANDO_NEGRITA_OFF)
+
+        if (configuracion.mostrarSlogan && !configuracion.slogan.isNullOrBlank()) {
+            buffer.escribirTexto("${configuracion.slogan}\n")
+        }
+
+        buffer.escribirTexto("IMPRESIÓN DE PRUEBA\n")
+        buffer.escribirTexto(lineaDivisoria)
 
         buffer.write(COMANDO_ALINEAR_IZQ)
-        buffer.write("Estado: Conectada con exito\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write("Papel: ${if (configuracion.tamanoPapelImpresora == 0) "Personalizado" else "${configuracion.tamanoPapelImpresora}mm"} ($ancho cols)\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write("Impresora: ${configuracion.nombreImpresora ?: "Bluetooth"}\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write("MAC: ${configuracion.direccionMacImpresora ?: "N/A"}\n".toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto("Estado: Conectada con éxito\n")
+        buffer.escribirTexto("Papel: ${if (configuracion.tamanoPapelImpresora == 0) "Personalizado" else "${configuracion.tamanoPapelImpresora}mm"} ($ancho cols)\n")
+        buffer.escribirTexto("Impresora: ${configuracion.nombreImpresora ?: "Bluetooth"}\n")
+        buffer.escribirTexto("MAC: ${configuracion.direccionMacImpresora ?: "N/A"}\n")
 
         buffer.write(COMANDO_ALINEAR_CENTRO)
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
-        buffer.write("TyPOS Movil - Listo para vender\n\n\n\n".toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(lineaDivisoria)
+        
+        buffer.write(COMANDO_FUENTE_B)
+        buffer.escribirTexto("Powered by TyPOS Móvil\n")
+        buffer.write(COMANDO_FUENTE_A)
+        buffer.escribirTexto("\n\n\n\n")
 
         return buffer.toByteArray()
     }
@@ -183,104 +221,169 @@ object ServicioImpresoraBluetooth {
         val fechaTexto = formatoFecha.format(Date(venta.fecha))
 
         buffer.write(COMANDO_INICIALIZAR)
+        buffer.write(COMANDO_CODEPAGE_CP850)
 
-        // Encabezado del Negocio
+        // ==========================================
+        // 1. ENCABEZADO DEL NEGOCIO (HEADER)
+        // ==========================================
         buffer.write(COMANDO_ALINEAR_CENTRO)
-        buffer.write(COMANDO_TAMANO_DOBLE)
-        buffer.write(COMANDO_NEGRITA_ON)
-        buffer.write("${configuracion.nombreNegocio}\n".toByteArray(Charsets.ISO_8859_1))
+
+        // Tamaño del Nombre del Negocio
+        when (configuracion.tamanoNombreNegocio) {
+            0 -> {
+                buffer.write(COMANDO_TAMANO_NORMAL)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+            1 -> { // Mediano / Doble Alto (Recomendado - 32 columnas de texto sin desbordar)
+                buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+            2 -> { // Grande / Doble Tamaño
+                buffer.write(COMANDO_TAMANO_DOBLE)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+            else -> {
+                buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+                buffer.write(COMANDO_NEGRITA_ON)
+            }
+        }
+        buffer.escribirTexto("${configuracion.nombreNegocio}\n")
         buffer.write(COMANDO_TAMANO_NORMAL)
         buffer.write(COMANDO_NEGRITA_OFF)
 
-        if (!configuracion.rncCedula.isNullOrBlank()) {
-            buffer.write("RNC / Cedula: ${configuracion.rncCedula}\n".toByteArray(Charsets.ISO_8859_1))
-        }
-        if (!configuracion.direccion.isNullOrBlank()) {
-            buffer.write("${configuracion.direccion}\n".toByteArray(Charsets.ISO_8859_1))
-        }
-        if (!configuracion.telefono.isNullOrBlank()) {
-            buffer.write("Tel: ${configuracion.telefono}\n".toByteArray(Charsets.ISO_8859_1))
+        // Slogan (opcional)
+        if (configuracion.mostrarSlogan && !configuracion.slogan.isNullOrBlank()) {
+            buffer.escribirTexto("${configuracion.slogan}\n")
         }
 
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
+        // RNC / Cédula (si está en el Encabezado)
+        if (configuracion.posicionRnc == 0 && !configuracion.rncCedula.isNullOrBlank()) {
+            buffer.escribirTexto("RNC / Cédula: ${configuracion.rncCedula}\n")
+        }
 
-        // Datos de la Factura
+        // Dirección (si está en el Encabezado)
+        if (configuracion.posicionDireccion == 0 && !configuracion.direccion.isNullOrBlank()) {
+            buffer.escribirTexto("${configuracion.direccion}\n")
+        }
+
+        // Teléfono (si está en el Encabezado)
+        if (configuracion.posicionTelefono == 0 && !configuracion.telefono.isNullOrBlank()) {
+            buffer.escribirTexto("Tel: ${configuracion.telefono}\n")
+        }
+
+        buffer.escribirTexto(lineaDivisoria)
+
+        // ==========================================
+        // 2. DATOS DE LA FACTURA
+        // ==========================================
         buffer.write(COMANDO_ALINEAR_IZQ)
-        buffer.write(formatearLineaDosColumnas("Factura: ${venta.numeroFactura}", "", ancho).toByteArray(Charsets.ISO_8859_1))
-        buffer.write("Fecha: $fechaTexto\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write("Cajero: ${venta.usuario}\n".toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(formatearLineaDosColumnas("Factura: ${venta.numeroFactura}", "", ancho))
+        buffer.escribirTexto("Fecha: $fechaTexto\n")
 
-        if (!venta.nombreCliente.isNullOrBlank()) {
-            buffer.write("Cliente: ${venta.nombreCliente}\n".toByteArray(Charsets.ISO_8859_1))
-        }
-        if (!venta.rncCedulaCliente.isNullOrBlank()) {
-            buffer.write("RNC/Ced: ${venta.rncCedulaCliente}\n".toByteArray(Charsets.ISO_8859_1))
+        if (configuracion.mostrarCajero && venta.usuario.isNotBlank()) {
+            buffer.escribirTexto("Cajero: ${venta.usuario}\n")
         }
 
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
+        if (configuracion.mostrarCliente && !venta.nombreCliente.isNullOrBlank()) {
+            buffer.escribirTexto("Cliente: ${venta.nombreCliente}\n")
+        }
+        if (configuracion.mostrarCliente && !venta.rncCedulaCliente.isNullOrBlank()) {
+            buffer.escribirTexto("RNC/Céd: ${venta.rncCedulaCliente}\n")
+        }
 
-        // Encabezado de Productos
+        buffer.escribirTexto(lineaDivisoria)
+
+        // ==========================================
+        // 3. TABLA DE PRODUCTOS (CENTRAL)
+        // ==========================================
         if (ancho <= 36) {
-            buffer.write(formatearLineaTresColumnas("Cant", "Descripcion", "Total", ancho).toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto(formatearLineaTresColumnas("Cant", "Descripción", "Total", ancho))
         } else {
-            buffer.write(formatearLineaCuatroColumnas("Cant", "Descripcion", "Precio", "Total", ancho).toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto(formatearLineaCuatroColumnas("Cant", "Descripción", "Precio", "Total", ancho))
         }
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(lineaDivisoria)
 
         // Lista de Artículos
         for (item in detalles) {
-            val cantTexto = if (item.cantidad % 1.0 == 0.0) item.cantidad.toInt().toString() else String.format("%.2f", item.cantidad)
-            val totalTexto = String.format("%.2f", item.total)
+            val cantTexto = if (item.cantidad % 1.0 == 0.0) item.cantidad.toInt().toString() else String.format(Locale.US, "%.2f", item.cantidad)
+            val totalTexto = String.format(Locale.US, "%.2f", item.total)
 
             if (ancho <= 36) {
-                buffer.write(formatearLineaTresColumnas(cantTexto, item.nombre, totalTexto, ancho).toByteArray(Charsets.ISO_8859_1))
+                buffer.escribirTexto(formatearLineaTresColumnas(cantTexto, item.nombre, totalTexto, ancho))
             } else {
-                val precioTexto = String.format("%.2f", item.precio)
-                buffer.write(formatearLineaCuatroColumnas(cantTexto, item.nombre, precioTexto, totalTexto, ancho).toByteArray(Charsets.ISO_8859_1))
+                val precioTexto = String.format(Locale.US, "%.2f", item.precio)
+                buffer.escribirTexto(formatearLineaCuatroColumnas(cantTexto, item.nombre, precioTexto, totalTexto, ancho))
             }
         }
 
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(lineaDivisoria)
 
-        // Totales y Desglose Contable con ITBIS
+        // ==========================================
+        // 4. TOTALES Y DESGLOSE CONTABLE
+        // ==========================================
         buffer.write(COMANDO_ALINEAR_DER)
-        buffer.write(formatearLineaDosColumnas("Subtotal:", "$${String.format("%.2f", venta.subTotalNeto)}", ancho).toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(formatearLineaDosColumnas("Subtotal:", "$${String.format(Locale.US, "%.2f", venta.subTotalNeto)}", ancho))
 
         if (venta.montoItbis > 0) {
-            buffer.write(formatearLineaDosColumnas("ITBIS (18%):", "$${String.format("%.2f", venta.montoItbis)}", ancho).toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto(formatearLineaDosColumnas("ITBIS (18%):", "$${String.format(Locale.US, "%.2f", venta.montoItbis)}", ancho))
         }
 
         if (venta.descuento > 0) {
-            buffer.write(formatearLineaDosColumnas("Descuento:", "-$${String.format("%.2f", venta.descuento)}", ancho).toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto(formatearLineaDosColumnas("Descuento:", "-$${String.format(Locale.US, "%.2f", venta.descuento)}", ancho))
         }
 
         buffer.write(COMANDO_NEGRITA_ON)
-        buffer.write(formatearLineaDosColumnas("TOTAL A PAGAR:", "$${String.format("%.2f", venta.total)}", ancho).toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(formatearLineaDosColumnas("TOTAL A PAGAR:", "$${String.format(Locale.US, "%.2f", venta.total)}", ancho))
         buffer.write(COMANDO_NEGRITA_OFF)
 
-        buffer.write(lineaDivisoria.toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto(lineaDivisoria)
 
-        // Método de Pago y Cambio
+        // ==========================================
+        // 5. MÉTODO DE PAGO Y CAMBIO
+        // ==========================================
         buffer.write(COMANDO_ALINEAR_IZQ)
-        buffer.write("Metodo de Pago: ${venta.metodoPago}\n".toByteArray(Charsets.ISO_8859_1))
+        buffer.escribirTexto("Método de Pago: ${venta.metodoPago}\n")
 
         if (venta.metodoPago == "Efectivo" && venta.montoRecibido > 0) {
-            buffer.write(formatearLineaDosColumnas("Efectivo Recibido:", "$${String.format("%.2f", venta.montoRecibido)}", ancho).toByteArray(Charsets.ISO_8859_1))
-            buffer.write(formatearLineaDosColumnas("Cambio / Devuelta:", "$${String.format("%.2f", venta.montoDevuelto)}", ancho).toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto(formatearLineaDosColumnas("Efectivo Recibido:", "$${String.format(Locale.US, "%.2f", venta.montoRecibido)}", ancho))
+            buffer.escribirTexto(formatearLineaDosColumnas("Cambio / Devuelta:", "$${String.format(Locale.US, "%.2f", venta.montoDevuelto)}", ancho))
         }
 
         if (venta.metodoPago == "Transferencia" && !venta.referenciaTransferencia.isNullOrBlank()) {
-            buffer.write("Ref: ${venta.referenciaTransferencia}\n".toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto("Ref: ${venta.referenciaTransferencia}\n")
         }
 
         if (venta.metodoPago == "Cheque" && !venta.numeroCheque.isNullOrBlank()) {
-            buffer.write("Cheque No: ${venta.numeroCheque} (${venta.bancoCheque ?: ""})\n".toByteArray(Charsets.ISO_8859_1))
+            buffer.escribirTexto("Cheque No: ${venta.numeroCheque} (${venta.bancoCheque ?: ""})\n")
         }
 
-        // Pie de Ticket
+        // ==========================================
+        // 6. PIE DE TICKET (FOOTER)
+        // ==========================================
         buffer.write(COMANDO_ALINEAR_CENTRO)
-        buffer.write("\n${configuracion.pieTicket}\n".toByteArray(Charsets.ISO_8859_1))
-        buffer.write("Software: TyPOS Movil\n\n\n\n".toByteArray(Charsets.ISO_8859_1))
+
+        // Dirección en Footer si fue configurada allí
+        if (configuracion.posicionDireccion == 1 && !configuracion.direccion.isNullOrBlank()) {
+            buffer.escribirTexto("\n${configuracion.direccion}\n")
+        }
+
+        // Teléfono en Footer si fue configurado allí
+        if (configuracion.posicionTelefono == 1 && !configuracion.telefono.isNullOrBlank()) {
+            buffer.escribirTexto("Tel: ${configuracion.telefono}\n")
+        }
+
+        // Mensaje de despedida
+        if (configuracion.pieTicket.isNotBlank()) {
+            buffer.escribirTexto("\n${configuracion.pieTicket}\n")
+        }
+
+        // Powered by TyPOS Móvil (Firma fija permanente)
+        buffer.write(COMANDO_FUENTE_B)
+        buffer.escribirTexto("Powered by TyPOS Móvil\n")
+        buffer.write(COMANDO_FUENTE_A)
+
+        // Avance de papel para corte
+        buffer.escribirTexto("\n\n\n\n")
 
         return buffer.toByteArray()
     }
