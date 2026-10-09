@@ -249,7 +249,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
         _cobroState.update { it.copy(rncCedulaCliente = rnc) }
     }
 
-    fun procesarCobro(alTerminarExito: () -> Unit) {
+    fun procesarCobro(confirmarMenorMonto: Boolean = false, alTerminarExito: () -> Unit) {
         val totalVenta = obtenerTotal()
         val estadoCobro = _cobroState.value
         val metodo = estadoCobro.metodoPago
@@ -263,11 +263,15 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
         when (metodo) {
             "Efectivo" -> {
                 montoRecibidoDouble = estadoCobro.montoRecibido.toDoubleOrNull() ?: totalVenta
-                if (montoRecibidoDouble < totalVenta) {
+                if (montoRecibidoDouble <= 0.0) {
+                    _cobroState.update { it.copy(mensajeError = "Ingresa un monto recibido válido mayor a 0") }
+                    return
+                }
+                if (montoRecibidoDouble < totalVenta && !confirmarMenorMonto) {
                     _cobroState.update { it.copy(mensajeError = "El monto recibido es menor al total a pagar ($${String.format("%.2f", totalVenta)})") }
                     return
                 }
-                montoEfectivo = totalVenta
+                montoEfectivo = if (montoRecibidoDouble >= totalVenta) totalVenta else montoRecibidoDouble
                 montoDevueltoDouble = (montoRecibidoDouble - totalVenta).coerceAtLeast(0.0)
             }
             "Transferencia" -> {
@@ -286,7 +290,11 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                 montoCheque = estadoCobro.montoCheque.toDoubleOrNull() ?: 0.0
                 val sumaPagos = montoEfectivo + montoTransferencia + montoCheque
 
-                if (sumaPagos < totalVenta) {
+                if (sumaPagos <= 0.0) {
+                    _cobroState.update { it.copy(mensajeError = "Ingresa al menos un monto de pago válido mayor a 0") }
+                    return
+                }
+                if (sumaPagos < totalVenta && !confirmarMenorMonto) {
                     _cobroState.update { it.copy(mensajeError = "La suma de los montos ($${String.format("%.2f", sumaPagos)}) no cubre el total de la venta ($${String.format("%.2f", totalVenta)})") }
                     return
                 }

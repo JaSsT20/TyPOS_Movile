@@ -28,18 +28,23 @@ import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,10 +85,117 @@ fun DialogoCobro(
 
     val metodosPago = listOf("Efectivo", "Transferencia", "Cheque", "Mixto")
 
-    // Cálculo dinámico de cambio para efectivo
+    // Cálculo dinámico de cambio o faltante para efectivo
     val montoRecibidoDouble = cobroState.montoRecibido.toDoubleOrNull() ?: 0.0
     val cambio by remember(montoRecibidoDouble, total) {
         derivedStateOf { (montoRecibidoDouble - total).coerceAtLeast(0.0) }
+    }
+    val faltanteEfectivo by remember(montoRecibidoDouble, total) {
+        derivedStateOf { (total - montoRecibidoDouble).coerceAtLeast(0.0) }
+    }
+
+    var mostrarConfirmacionMontoMenor by remember { mutableStateOf(false) }
+
+    // Diálogo de Confirmación cuando el monto recibido es menor al total
+    if (mostrarConfirmacionMontoMenor) {
+        val montoRecibidoFinal = if (cobroState.metodoPago == "Efectivo") {
+            cobroState.montoRecibido.toDoubleOrNull() ?: 0.0
+        } else {
+            val ef = cobroState.montoEfectivo.toDoubleOrNull() ?: 0.0
+            val tr = cobroState.montoTransferencia.toDoubleOrNull() ?: 0.0
+            val ch = cobroState.montoCheque.toDoubleOrNull() ?: 0.0
+            ef + tr + ch
+        }
+        val diferenciaFaltante = (total - montoRecibidoFinal).coerceAtLeast(0.0)
+
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacionMontoMenor = false },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(AmarilloAdvertencia.copy(alpha = 0.2f), RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.WarningAmber,
+                        contentDescription = "Advertencia",
+                        tint = AmarilloAdvertencia,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Monto Recibido Menor al Total",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "El monto que estás cobrando ($${String.format("%.2f", montoRecibidoFinal)}) es menor que el total de la venta ($${String.format("%.2f", total)}).",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = AmarilloAdvertencia.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AmarilloAdvertencia.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Faltante / Diferencia:",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "-$${String.format("%.2f", diferenciaFaltante)}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = AmarilloAdvertencia
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "¿Deseas confirmar y procesar la venta con este monto de todas formas?",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                BotonPos(
+                    texto = "Sí, Confirmar Venta",
+                    alHacerClic = {
+                        mostrarConfirmacionMontoMenor = false
+                        viewModel.procesarCobro(confirmarMenorMonto = true, alTerminarExito = alConfirmarExito)
+                    },
+                    variante = VarianteBoton.EXITO
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacionMontoMenor = false }) {
+                    Text("Ajustar Monto", color = GrisSecundario, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
     }
 
     Dialog(
@@ -234,7 +346,7 @@ fun DialogoCobro(
                             }
                         }
 
-                        // Indicador de Devuelta / Cambio
+                        // Indicador de Devuelta / Cambio o Aviso de Monto Menor
                         if (montoRecibidoDouble >= total) {
                             Box(
                                 modifier = Modifier
@@ -250,6 +362,47 @@ fun DialogoCobro(
                                 ) {
                                     Text("Cambio / Devuelta:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VerdeExito)
                                     Text("$${String.format("%.2f", cambio)}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = VerdeExito)
+                                }
+                            }
+                        } else if (montoRecibidoDouble > 0.0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(AmarilloAdvertencia.copy(alpha = 0.15f))
+                                    .border(1.dp, AmarilloAdvertencia.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                    .padding(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "Monto menor al total",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Faltante: $${String.format("%.2f", faltanteEfectivo)}",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = AmarilloAdvertencia.copy(alpha = 0.25f)
+                                    ) {
+                                        Text(
+                                            text = "Cobro Parcial",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -317,7 +470,7 @@ fun DialogoCobro(
                                 .padding(10.dp)
                         ) {
                             Text(
-                                text = if (suma >= total) "✓ Monto total cubierto ($${String.format("%.2f", suma)})" else "Falta por cubrir: $${String.format("%.2f", restante)}",
+                                text = if (suma >= total) "✓ Monto total cubierto ($${String.format("%.2f", suma)})" else "Faltante por cubrir: $${String.format("%.2f", restante)}",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (suma >= total) VerdeExito else AmarilloAdvertencia,
@@ -375,7 +528,20 @@ fun DialogoCobro(
                 BotonPos(
                     texto = "Confirmar y Finalizar Venta",
                     alHacerClic = {
-                        viewModel.procesarCobro(alTerminarExito = alConfirmarExito)
+                        val esEfectivoMenor = cobroState.metodoPago == "Efectivo" && montoRecibidoDouble > 0.0 && montoRecibidoDouble < total
+                        val esMixtoMenor = cobroState.metodoPago == "Mixto" && run {
+                            val ef = cobroState.montoEfectivo.toDoubleOrNull() ?: 0.0
+                            val tr = cobroState.montoTransferencia.toDoubleOrNull() ?: 0.0
+                            val ch = cobroState.montoCheque.toDoubleOrNull() ?: 0.0
+                            val suma = ef + tr + ch
+                            suma > 0.0 && suma < total
+                        }
+
+                        if (esEfectivoMenor || esMixtoMenor) {
+                            mostrarConfirmacionMontoMenor = true
+                        } else {
+                            viewModel.procesarCobro(confirmarMenorMonto = false, alTerminarExito = alConfirmarExito)
+                        }
                     },
                     estaCargando = cobroState.estaProcesando,
                     variante = VarianteBoton.EXITO,
