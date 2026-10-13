@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Inventory
@@ -213,7 +214,7 @@ fun PantallaPrincipal(
 
             // Opciones Principales del POS
             Text(
-                text = "Módulos de Trabajo",
+                text = "¿Qué deseas hacer?",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -221,33 +222,33 @@ fun PantallaPrincipal(
             )
 
             TarjetaModuloPos(
-                titulo = "Caja y Ventas",
-                descripcion = "Registrar nueva venta, cobrar e imprimir ticket",
+                titulo = "Facturación",
+                descripcion = "Elegir productos, cobrar e imprimir ticket",
                 icono = Icons.Filled.ShoppingCart,
                 colorIcono = VerdeExito,
                 alHacerClic = alNavegarAVentas
             )
 
             TarjetaModuloPos(
-                titulo = "Catálogo de Productos",
-                descripcion = "Registrar productos, gestionar precios y stock",
+                titulo = "Mis Productos y Servicios",
+                descripcion = "Registrar artículos, servicios, precios y stock",
                 icono = Icons.Filled.Inventory,
                 colorIcono = AzulPrimario,
                 alHacerClic = alNavegarAProductos
             )
 
             TarjetaModuloPos(
-                titulo = "Historial y Reportes",
-                descripcion = "Consultar ventas realizadas, reimprimir y anular tickets",
-                icono = Icons.Filled.Assessment,
+                titulo = "Historial de Ventas",
+                descripcion = "Consultar ventas realizadas y reimprimir tickets",
+                icono = Icons.AutoMirrored.Filled.ReceiptLong,
                 colorIcono = CelesteInformacion,
                 alHacerClic = alNavegarAHistorial
             )
 
             TarjetaModuloPos(
-                titulo = "Configuración e Impresora",
-                descripcion = "Vincular impresora Bluetooth térmica y datos del negocio",
-                icono = Icons.Filled.Print,
+                titulo = "Configuración",
+                descripcion = "Vincular impresora, datos del negocio y ajustes",
+                icono = Icons.Filled.Settings,
                 colorIcono = GrisSecundario,
                 alHacerClic = alNavegarAConfiguracion
             )
