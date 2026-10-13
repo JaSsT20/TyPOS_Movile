@@ -171,3 +171,51 @@ fun MiniaturaProducto(
         }
     }
 }
+
+/**
+ * Componente visual para la cabecera de las tarjetas de producto en cuadrícula (estilo Amazon).
+ * Mantiene un bajo consumo de memoria RAM decodificando la imagen a resolución óptima (máx 280x280).
+ */
+@Composable
+fun ImagenProductoTarjeta(
+    fotoUri: String?,
+    nombre: String,
+    modifier: Modifier = Modifier,
+    alto: Dp = 120.dp,
+    forma: Shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+    colorFondoFallback: Color = AzulPrimarioClaro.copy(alpha = 0.25f),
+    colorTextoFallback: Color = AzulPrimario
+) {
+    val bitmap = remember(fotoUri) {
+        if (!fotoUri.isNullOrBlank()) {
+            GestorImagenesProducto.decodificarMuestreado(fotoUri, 280, 280)?.asImageBitmap()
+        } else null
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(alto)
+            .clip(forma)
+            .background(colorFondoFallback),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = nombre,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            val inicial = nombre.trim().take(1).uppercase().ifEmpty { "P" }
+            Text(
+                text = inicial,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorTextoFallback
+            )
+        }
+    }
+}
+
