@@ -357,6 +357,15 @@ object ServicioImpresoraBluetooth {
             buffer.escribirTexto("Cheque No: ${venta.numeroCheque} (${venta.bancoCheque ?: ""})\n")
         }
 
+        if (venta.metodoPago == "Mixto") {
+            if (venta.montoEfectivo > 0) buffer.escribirTexto(formatearLineaDosColumnas("  Efectivo:", "$${String.format(Locale.US, "%.2f", venta.montoEfectivo)}", ancho))
+            if (venta.montoTransferencia > 0) buffer.escribirTexto(formatearLineaDosColumnas("  Transferencia:", "$${String.format(Locale.US, "%.2f", venta.montoTransferencia)}", ancho))
+            if (venta.montoCheque > 0) buffer.escribirTexto(formatearLineaDosColumnas("  Cheque:", "$${String.format(Locale.US, "%.2f", venta.montoCheque)}", ancho))
+            if (venta.montoDevuelto > 0) {
+                buffer.escribirTexto(formatearLineaDosColumnas("Cambio / Devuelta:", "$${String.format(Locale.US, "%.2f", venta.montoDevuelto)}", ancho))
+            }
+        }
+
         // ==========================================
         // 6. PIE DE TICKET (FOOTER)
         // ==========================================
