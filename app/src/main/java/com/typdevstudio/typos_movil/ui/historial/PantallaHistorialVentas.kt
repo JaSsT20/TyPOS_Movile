@@ -79,6 +79,8 @@ import com.typdevstudio.typos_movil.datos.local.relaciones.VentaConDetalles
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.CampoTextoPos
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
+import com.typdevstudio.typos_movil.ui.componentes.paginacion.ControlPaginacionPos
+import com.typdevstudio.typos_movil.ui.componentes.paginacion.rememberEstadoPaginacion
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
@@ -112,6 +114,17 @@ fun PantallaHistorialVentas(
     val estaReimprimiendo by viewModel.estaReimprimiendo.collectAsState()
     val mensajeAlerta by viewModel.mensajeAlerta.collectAsState()
     val esErrorAlerta by viewModel.esErrorAlerta.collectAsState()
+
+    // Paginador reactivo optimizado para listas grandes en teléfonos gama baja
+    val estadoPaginacion = rememberEstadoPaginacion(
+        tamanioPaginaInicial = 15,
+        claveReinicio = busqueda + filtroFecha.name + filtroEstado.name
+    )
+
+    val ventasPaginadas = remember(ventas, estadoPaginacion.paginaActual, estadoPaginacion.tamanioPagina) {
+        estadoPaginacion.obtenerPagina(ventas)
+    }
+
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -321,7 +334,26 @@ fun PantallaHistorialVentas(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Indicador de resultados paginados
+            if (ventas.isNotEmpty()) {
+                val totalPags = estadoPaginacion.calcularTotalPaginas(ventas.size)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${ventas.size} ventas encontradas" + if (totalPags > 1) " • Pág. ${estadoPaginacion.paginaActual}/$totalPags" else "",
+                        fontSize = 12.5.sp,
+                        color = GrisSecundario,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
 
             // Lista de Ventas
             if (ventas.isEmpty()) {
@@ -360,7 +392,7 @@ fun PantallaHistorialVentas(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(
-                        items = ventas,
+                        items = ventasPaginadas,
                         key = { it.venta.id }
                     ) { itemVenta ->
                         TarjetaVentaHistorial(
@@ -368,6 +400,17 @@ fun PantallaHistorialVentas(
                             alHacerClic = { viewModel.seleccionarVenta(itemVenta) }
                         )
                     }
+
+                    // Paginador reutilizable
+                    item {
+                        ControlPaginacionPos(
+                            estado = estadoPaginacion,
+                            totalElementos = ventas.size,
+                            mostrarSelectorTamanio = true,
+                            opcionesTamanio = listOf(10, 15, 25, 50)
+                        )
+                    }
+
                     item {
                         Spacer(modifier = Modifier.height(20.dp))
                     }

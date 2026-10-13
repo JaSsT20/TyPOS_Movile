@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.ui.componentes.DialogoEscanerCodigoBarras
+import com.typdevstudio.typos_movil.ui.componentes.paginacion.ControlPaginacionPos
+import com.typdevstudio.typos_movil.ui.componentes.paginacion.rememberEstadoPaginacion
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
@@ -90,6 +92,17 @@ fun PantallaProductos(
 
     var productoAEliminar by remember { mutableStateOf<ProductoEntidad?>(null) }
     var mostrarEscanerBusqueda by remember { mutableStateOf(false) }
+
+    // Paginador reactivo optimizado para listas grandes en teléfonos gama baja
+    val estadoPaginacion = rememberEstadoPaginacion(
+        tamanioPaginaInicial = 15,
+        claveReinicio = busqueda + categoriaSeleccionada + filtroStock.name
+    )
+
+    val productosPaginados = remember(productos, estadoPaginacion.paginaActual, estadoPaginacion.tamanioPagina) {
+        estadoPaginacion.obtenerPagina(productos)
+    }
+
 
     // Escáner de código de barras para búsqueda rápida
     DialogoEscanerCodigoBarras(
@@ -304,8 +317,9 @@ fun PantallaProductos(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val totalPags = estadoPaginacion.calcularTotalPaginas(productos.size)
                 Text(
-                    text = "Mostrando ${productos.size} registros",
+                    text = "Mostrando ${productos.size} registros" + if (totalPags > 1) " • Pág. ${estadoPaginacion.paginaActual}/$totalPags" else "",
                     fontSize = 13.sp,
                     color = GrisSecundario,
                     fontWeight = FontWeight.Medium
@@ -356,7 +370,7 @@ fun PantallaProductos(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(
-                        items = productos,
+                        items = productosPaginados,
                         key = { it.id }
                     ) { producto ->
                         TarjetaProductoModerna(
@@ -368,6 +382,17 @@ fun PantallaProductos(
                             alEliminar = { productoAEliminar = producto }
                         )
                     }
+
+                    // Paginador reutilizable
+                    item {
+                        ControlPaginacionPos(
+                            estado = estadoPaginacion,
+                            totalElementos = productos.size,
+                            mostrarSelectorTamanio = true,
+                            opcionesTamanio = listOf(10, 15, 25, 50)
+                        )
+                    }
+
                     item {
                         Spacer(modifier = Modifier.height(80.dp))
                     }
