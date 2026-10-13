@@ -1,13 +1,9 @@
 package com.typdevstudio.typos_movil.ui.configuracion
 
 import android.Manifest
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -56,13 +52,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocationOn
@@ -75,7 +68,6 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShortText
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Style
@@ -111,7 +103,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -119,12 +110,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.typdevstudio.typos_movil.BuildConfig
-import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
+import com.typdevstudio.typos_movil.ui.licencia.TextosLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.EstadoLicencia
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.CampoTextoPos
 import com.typdevstudio.typos_movil.ui.componentes.DialogoActualizacion
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
-import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
@@ -137,9 +130,6 @@ import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import com.typdevstudio.typos_movil.ui.configuracion.backup.SubPantallaCopiasSeguridad
 import com.typdevstudio.typos_movil.ui.configuracion.importacion.PantallaImportarProductos
 import com.typdevstudio.typos_movil.ui.configuracion.importacion.SubPantallaImportarDatos
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 enum class SeccionConfiguracion(val titulo: String) {
     MENU_PRINCIPAL("Configuración"),
@@ -158,7 +148,8 @@ enum class SeccionConfiguracion(val titulo: String) {
 fun PantallaConfiguracion(
     viewModel: ConfiguracionViewModel,
     alVolver: () -> Unit,
-    alNavegarAProductos: () -> Unit = {}
+    alNavegarAProductos: () -> Unit = {},
+    alNavegarALicencia: () -> Unit = {}
 ) {
     val estado by viewModel.uiState.collectAsState()
     val contexto = LocalContext.current
@@ -261,7 +252,17 @@ fun PantallaConfiguracion(
                         SeccionConfiguracion.MENU_PRINCIPAL -> {
                             MenuPrincipalConfiguracion(
                                 estado = estado,
-                                alSeleccionarSeccion = { seccionActual = it }
+                                alSeleccionarSeccion = { destino ->
+                                    // Importar productos es parte del módulo "inventario" del plan.
+                                    if (destino == SeccionConfiguracion.IMPORTAR_DATOS &&
+                                        !LicenciaGuard.situacion.value.moduloIncluido(ModulosLicencia.INVENTARIO)
+                                    ) {
+                                        viewModel.mostrarAlerta(ModulosLicencia.mensajeNoIncluido("Inventario"), esError = true)
+                                    } else {
+                                        seccionActual = destino
+                                    }
+                                },
+                                alNavegarALicencia = alNavegarALicencia
                             )
                         }
                         SeccionConfiguracion.APARIENCIA -> {
@@ -387,8 +388,11 @@ private fun BannerAlerta(
 @Composable
 private fun MenuPrincipalConfiguracion(
     estado: ConfiguracionUiState,
-    alSeleccionarSeccion: (SeccionConfiguracion) -> Unit
+    alSeleccionarSeccion: (SeccionConfiguracion) -> Unit,
+    alNavegarALicencia: () -> Unit
 ) {
+    val situacionLicencia by LicenciaGuard.situacion.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -498,17 +502,31 @@ private fun MenuPrincipalConfiguracion(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column {
-                val subLicencia = when (val lic = estado.estadoLicencia) {
-                    is EstadoLicencia.Activa -> "Licencia Activa (${lic.diasRestantes} días) • TyPOS Móvil v${BuildConfig.VERSION_NAME}"
-                    is EstadoLicencia.Vencida -> "Licencia Vencida • Requiere renovación"
-                    else -> "Sin licencia activa • TyPOS Móvil v${BuildConfig.VERSION_NAME}"
+                val subLicencia = when {
+                    !situacionLicencia.verificada -> "Verificando licencia…"
+                    !situacionLicencia.permiteEmitir -> "Modo solo consulta • Toca para activar o validar"
+                    situacionLicencia.usaLicenciaAntigua -> "Licencia anterior vigente • Activa tu nueva licencia"
+                    else -> when (situacionLicencia.nube) {
+                        is EstadoLicencia.EnCortesia -> "Licencia vencida • En período de cortesía"
+                        is EstadoLicencia.ActivaPorValidar -> "Licencia activa • Pendiente de validar"
+                        else -> "Licencia activa" + (situacionLicencia.payload?.let { " • Plan ${TextosLicencia.nombrePlan(it.plan)}" } ?: "")
+                    }
                 }
+
+                ItemMenuAjustes(
+                    icono = Icons.Filled.Verified,
+                    colorIcono = Color(0xFF43A047), // Verde
+                    titulo = "Licencia",
+                    subtitulo = subLicencia,
+                    alHacerClic = alNavegarALicencia,
+                    mostrarDivisor = true
+                )
 
                 ItemMenuAjustes(
                     icono = Icons.Filled.Info,
                     colorIcono = Color(0xFF1E88E5), // Azul Cobalt
                     titulo = "Información del Sistema",
-                    subtitulo = subLicencia,
+                    subtitulo = "TyPOS Móvil v${BuildConfig.VERSION_NAME} • Actualizaciones",
                     alHacerClic = { alSeleccionarSeccion(SeccionConfiguracion.INFO_SISTEMA) },
                     mostrarDivisor = false
                 )
@@ -1556,7 +1574,7 @@ private fun SubPantallaImpresora(
 
             BotonPos(
                 texto = if (estado.estaGuardando) "Guardando..." else "Guardar Impresora",
-                alHacerClic = { viewModel.guardarConfiguracion() },
+                alHacerClic = { viewModel.guardarImpresora() },
                 estaCargando = estado.estaGuardando,
                 icono = Icons.Filled.Save,
                 modifier = Modifier.weight(1.3f)
@@ -1570,8 +1588,6 @@ private fun SubPantallaImpresora(
 // =========================================================================
 @Composable
 private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: ConfiguracionUiState) {
-    val contexto = LocalContext.current
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1579,269 +1595,6 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- SECCIÓN LICENCIA ---
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Verified,
-                        contentDescription = null,
-                        tint = AzulPrimario,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Licencia y Activación",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AzulPrimario
-                    )
-                }
-
-                // TARJETA SERIAL DEL DISPOSITIVO
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Fingerprint,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "SERIAL DE ESTE DISPOSITIVO",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-
-                        // Badge del código serial con texto monospace
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = estado.serialDispositivo.ifEmpty { "Generando identificador..." },
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 10.dp, horizontal = 12.dp)
-                            )
-                        }
-
-                        // Botones de acción
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    val clipboard = contexto.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Serial TyPOS", estado.serialDispositivo)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(contexto, "Serial copiado al portapapeles", Toast.LENGTH_SHORT).show()
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = AzulPrimario,
-                                    contentColor = Blanco
-                                ),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Copiar", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    val sendIntent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            "Hola, este es mi Serial de TyPOS Móvil para generar la licencia:\n${estado.serialDispositivo}"
-                                        )
-                                        type = "text/plain"
-                                    }
-                                    val shareIntent = Intent.createChooser(sendIntent, "Enviar Serial TyPOS")
-                                    contexto.startActivity(shareIntent)
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, AzulPrimario),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = AzulPrimario
-                                ),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Compartir", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                // Estado visual de la licencia
-                val sdfCompleto = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
-                val sdfFecha = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
-                when (val lic = estado.estadoLicencia) {
-                    is EstadoLicencia.Activa -> {
-                        val fechaVencTexto = if (lic.fechaVencimiento > 0) sdfFecha.format(Date(lic.fechaVencimiento)) else "Sin límite"
-                        val fechaAplicadaTexto = if (lic.fechaActivacion > 0) sdfCompleto.format(Date(lic.fechaActivacion)) else "Registrada"
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = VerdeExito.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, VerdeExito.copy(alpha = 0.35f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(text = "Estado:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Surface(
-                                        color = VerdeExito,
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "● LICENCIA ACTIVA",
-                                            fontSize = 11.sp,
-                                            color = Blanco,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
-                                }
-
-                                HorizontalDivider(color = VerdeExito.copy(alpha = 0.2f))
-
-                                FilaDetalleSistema(etiqueta = "Días Restantes:", valor = "${lic.diasRestantes} días de validez", colorValor = VerdeExito, esNegrita = true)
-                                FilaDetalleSistema(etiqueta = "Fecha de Aplicación:", valor = fechaAplicadaTexto)
-                                FilaDetalleSistema(etiqueta = "Fecha de Vencimiento:", valor = fechaVencTexto)
-                                FilaDetalleSistema(etiqueta = "Clave Activa:", valor = lic.clave.chunked(4).joinToString("-"))
-                            }
-                        }
-                    }
-                    is EstadoLicencia.Vencida -> {
-                        val fechaVencTexto = if (lic.fechaVencimiento > 0) sdfCompleto.format(Date(lic.fechaVencimiento)) else "Vencida"
-                        val fechaAplicadaTexto = if (lic.fechaActivacion > 0) sdfCompleto.format(Date(lic.fechaActivacion)) else "Desconocida"
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = RojoError.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, RojoError.copy(alpha = 0.35f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(text = "Estado:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Surface(
-                                        color = RojoError,
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "● LICENCIA VENCIDA",
-                                            fontSize = 11.sp,
-                                            color = Blanco,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
-                                }
-
-                                HorizontalDivider(color = RojoError.copy(alpha = 0.2f))
-
-                                FilaDetalleSistema(etiqueta = "Fecha de Aplicación:", valor = fechaAplicadaTexto)
-                                FilaDetalleSistema(etiqueta = "Venció el:", valor = fechaVencTexto, colorValor = RojoError, esNegrita = true)
-                            }
-                        }
-                    }
-                    else -> {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = AmarilloAdvertencia.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, AmarilloAdvertencia.copy(alpha = 0.35f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Sin licencia activa registrada. Ingresa una clave para activar el sistema.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Formulario para ingresar o renovar licencia
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CampoTextoPos(
-                        valor = estado.claveLicenciaNueva,
-                        alCambiarValor = { viewModel.onClaveLicenciaNuevaCambiada(it) },
-                        etiqueta = "Ingresar / Renovar Clave de Licencia",
-                        iconoInicio = Icons.Filled.Key
-                    )
-
-                    BotonPos(
-                        texto = "Activar / Renovar Licencia",
-                        alHacerClic = { viewModel.activarLicenciaNueva() },
-                        estaCargando = estado.estaActivandoLicencia,
-                        icono = Icons.Filled.Verified,
-                        variante = VarianteBoton.EXITO,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-
         // --- SECCIÓN APLICACIÓN Y ACTUALIZACIONES ---
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -1872,8 +1625,8 @@ private fun SubPantallaInfoSistema(viewModel: ConfiguracionViewModel, estado: Co
                 }
 
                 FilaDetalleSistema(etiqueta = "Versión Instalada:", valor = "v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})", esNegrita = true)
-                FilaDetalleSistema(etiqueta = "Desarrollador:", valor = "TyPOS Software Studio")
-                FilaDetalleSistema(etiqueta = "Contacto / Soporte:", valor = "soporte@typospos.com")
+                FilaDetalleSistema(etiqueta = "Desarrollador:", valor = BuildConfig.CONTACTO_LICENCIA_NOMBRE)
+                FilaDetalleSistema(etiqueta = "Contacto / Soporte:", valor = BuildConfig.CONTACTO_LICENCIA_TELEFONO)
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 

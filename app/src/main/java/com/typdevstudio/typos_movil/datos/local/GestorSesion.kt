@@ -1,5 +1,6 @@
 package com.typdevstudio.typos_movil.datos.local
 
+import com.typdevstudio.typos_movil.datos.local.daos.UsuarioDao
 import com.typdevstudio.typos_movil.datos.local.entidades.UsuarioEntidad
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,6 +21,13 @@ object GestorSesion {
     fun esAdministrador(): Boolean {
         return _usuarioActivo.value?.rol == "ADMINISTRADOR"
     }
+
+    /**
+     * Acceso a secciones de administrador (licencia, configuración, respaldos). Si en el teléfono no existe
+     * ningún administrador activo se permite a cualquiera, para que nadie quede sin acceso.
+     */
+    suspend fun tieneAccesoAdministrador(usuarioDao: UsuarioDao): Boolean =
+        esAdministrador() || usuarioDao.contarAdministradoresActivos() == 0
 
     fun obtenerNombreUsuario(): String {
         return _usuarioActivo.value?.nombreCompleto ?: "Sin usuario"

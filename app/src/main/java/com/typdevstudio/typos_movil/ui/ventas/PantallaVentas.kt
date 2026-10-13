@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
+import com.typdevstudio.typos_movil.ui.licencia.BannerLicencia
 import com.typdevstudio.typos_movil.ui.componentes.DialogoEscanerCodigoBarras
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
@@ -99,7 +100,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun PantallaVentas(
     viewModel: VentasViewModel,
-    alVolver: () -> Unit
+    alVolver: () -> Unit,
+    alNavegarALicencia: () -> Unit = {}
 ) {
     val productos by viewModel.productos.collectAsState()
     val carrito by viewModel.carrito.collectAsState()
@@ -263,6 +265,12 @@ fun PantallaVentas(
                 .fillMaxSize()
                 .padding(paddingValores)
         ) {
+            // En modo solo consulta se ve el motivo antes de armar el carrito (el cobro también se bloquea en VentasViewModel).
+            BannerLicencia(
+                alAbrirLicencia = alNavegarALicencia,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
             // Buscador con Escáner y Categorías
             Column(
                 modifier = Modifier

@@ -26,6 +26,12 @@ interface UsuarioDao {
     @Query("SELECT COUNT(*) FROM usuarios")
     suspend fun contarUsuarios(): Int
 
+    @Query("SELECT COUNT(*) FROM usuarios WHERE esta_activo = 1")
+    suspend fun contarUsuariosActivos(): Int
+
+    @Query("SELECT COUNT(*) FROM usuarios WHERE rol = 'ADMINISTRADOR' AND esta_activo = 1")
+    suspend fun contarAdministradoresActivos(): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertar(usuario: UsuarioEntidad): Long
 

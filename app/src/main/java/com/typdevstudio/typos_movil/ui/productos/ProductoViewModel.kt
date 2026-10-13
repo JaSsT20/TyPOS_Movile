@@ -7,6 +7,9 @@ import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
 import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.datos.repositorio.ProductoRepositorio
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.SituacionLicencia
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -264,6 +267,16 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
         _formularioState.update { it.copy(estaGuardando = true, mensajeErrorGeneral = null) }
 
         viewModelScope.launch {
+            if (!LicenciaGuard.puedeEmitir()) {
+                _formularioState.update {
+                    it.copy(estaGuardando = false, mensajeErrorGeneral = LicenciaGuard.mensajeAccionBloqueada())
+                }
+                return@launch
+            }
+            // Sin el módulo de inventario un producto nuevo no controla stock (si no, quedaría con 0 unidades y no se
+            // podría vender). Los productos existentes conservan lo que ya tenían: el formulario no muestra esos campos.
+            val sinInventario = !LicenciaGuard.situacion.value.moduloIncluido(ModulosLicencia.INVENTARIO)
+            val esNuevo = estado.id == 0L
             try {
                 val usuarioActivo = GestorSesion.usuarioActivo.value
                 val producto = ProductoEntidad(
@@ -278,8 +291,8 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
                     exentoItbis = estado.exentoItbis,
                     itbisIncluido = estado.itbisIncluido,
                     tasaItbis = if (estado.exentoItbis) 0.0 else 18.0,
-                    stock = stockDouble,
-                    controlaStock = estado.controlaStock,
+                    stock = if (sinInventario && esNuevo) 0.0 else stockDouble,
+                    controlaStock = if (sinInventario && esNuevo) false else estado.controlaStock,
                     categoria = estado.categoria.trim().ifEmpty { "General" },
                     estaActivo = true,
                     imagenesUri = if (estado.imagenes.isNotEmpty()) estado.imagenes.joinToString(",") else null,
@@ -301,7 +314,19 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
 
     fun eliminarProducto(id: Long) {
         viewModelScope.launch {
+            if (!LicenciaGuard.puedeEmitir()) {
+                _mensajeAviso.value = SituacionLicencia.MENSAJE_ACCION_BLOQUEADA_CORTO
+                return@launch
+            }
             repositorio.eliminarProducto(id)
         }
+    }
+
+    // Avisos puntuales de la lista de productos (por ejemplo, una acción bloqueada por la licencia)
+    private val _mensajeAviso = MutableStateFlow<String?>(null)
+    val mensajeAviso: StateFlow<String?> = _mensajeAviso.asStateFlow()
+
+    fun limpiarAviso() {
+        _mensajeAviso.value = null
     }
 }

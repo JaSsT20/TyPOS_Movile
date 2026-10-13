@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solo build debug: permite HTTP sin cifrar hacia la API de licencias local de pruebas.
+     10.0.2.2 = la PC vista desde el emulador; 192.168.1.2 = la PC en la red Wi-Fi.
+     Si cambia la IP de la PC, actualizarla aquí y en la URL de la API del build debug. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">192.168.1.2</domain>
+    </domain-config>
+</network-security-config>

@@ -60,6 +60,7 @@ import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
 import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
 import com.typdevstudio.typos_movil.ui.componentes.DialogoConfirmacionSalida
+import com.typdevstudio.typos_movil.ui.licencia.BannerLicencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
@@ -74,6 +75,7 @@ fun PantallaPrincipal(
     alNavegarAProductos: () -> Unit,
     alNavegarAHistorial: () -> Unit,
     alNavegarAConfiguracion: () -> Unit,
+    alNavegarALicencia: () -> Unit,
     alCerrarSesion: () -> Unit
 ) {
     val contexto = LocalContext.current
@@ -151,6 +153,9 @@ fun PantallaPrincipal(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Aviso de licencia (modo solo consulta, cortesía, validar o transición). No aparece si todo está al día.
+            BannerLicencia(alAbrirLicencia = alNavegarALicencia)
+
             // Tarjeta de Usuario / Perfil (Clickeable para abrir configuraciones de perfil)
             Card(
                 onClick = { mostrarDialogoPerfil = true },

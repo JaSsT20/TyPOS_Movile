@@ -7,6 +7,7 @@ import com.typdevstudio.typos_movil.utilidades.backup.ArchivoBackupUi
 import com.typdevstudio.typos_movil.utilidades.backup.BackupUiState
 import com.typdevstudio.typos_movil.utilidades.backup.GestorBackup
 import com.typdevstudio.typos_movil.utilidades.backup.PlanificadorBackupDiario
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,6 +90,17 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch {
+            // Restaurar reemplaza los datos actuales: en modo solo consulta no se permite (crear y compartir copias sí).
+            if (!LicenciaGuard.puedeEmitir()) {
+                _uiState.update {
+                    it.copy(
+                        estaRestaurandoBackup = false,
+                        mensajeAlerta = LicenciaGuard.mensajeAccionBloqueada(),
+                        esError = true
+                    )
+                }
+                return@launch
+            }
             val exito = withContext(Dispatchers.IO) {
                 GestorBackup.restaurarBackup(contexto, backup.archivo)
             }

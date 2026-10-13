@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Build release: solo HTTPS. En Android 9+ ya es el comportamiento por defecto; esto lo exige
+     también en Android 7 y 8. El build debug tiene su propia versión en src/debug/res/xml. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

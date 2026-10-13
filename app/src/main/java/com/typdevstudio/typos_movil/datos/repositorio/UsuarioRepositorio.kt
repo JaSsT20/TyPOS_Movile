@@ -34,6 +34,12 @@ class UsuarioRepositorio(private val usuarioDao: UsuarioDao) {
             usuarioDao.contarUsuarios()
         }
 
+    /** Usuarios activos: los que cuentan contra el límite `max_usuarios` del plan. */
+    suspend fun contarUsuariosActivos(): Int =
+        withContext(Dispatchers.IO) {
+            usuarioDao.contarUsuariosActivos()
+        }
+
     suspend fun existeUsuario(nombreUsuario: String): Boolean =
         withContext(Dispatchers.IO) {
             usuarioDao.buscarPorNombreUsuarioInsensible(nombreUsuario.trim()) != null

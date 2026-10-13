@@ -73,6 +73,11 @@ import com.typdevstudio.typos_movil.ui.theme.GrisMedio
 import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.SituacionLicencia
+import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +92,16 @@ fun PantallaProductos(
     val categoriasDisponibles by viewModel.categoriasDisponibles.collectAsState()
     val categoriaSeleccionada by viewModel.categoriaSeleccionada.collectAsState()
     val filtroStock by viewModel.filtroStock.collectAsState()
+    val mensajeAviso by viewModel.mensajeAviso.collectAsState()
+    val situacionLicencia by LicenciaGuard.situacion.collectAsState()
+    val contextoAviso = LocalContext.current
+
+    LaunchedEffect(mensajeAviso) {
+        mensajeAviso?.let {
+            Toast.makeText(contextoAviso, it, Toast.LENGTH_LONG).show()
+            viewModel.limpiarAviso()
+        }
+    }
 
     var productoAEliminar by remember { mutableStateOf<ProductoEntidad?>(null) }
     var mostrarEscanerBusqueda by remember { mutableStateOf(false) }
@@ -149,8 +164,12 @@ fun PantallaProductos(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    viewModel.limpiarFormulario()
-                    alCrearProducto()
+                    if (situacionLicencia.permiteEmitir) {
+                        viewModel.limpiarFormulario()
+                        alCrearProducto()
+                    } else {
+                        Toast.makeText(contextoAviso, SituacionLicencia.MENSAJE_ACCION_BLOQUEADA_CORTO, Toast.LENGTH_LONG).show()
+                    }
                 },
                 containerColor = AzulPrimario,
                 contentColor = Blanco,

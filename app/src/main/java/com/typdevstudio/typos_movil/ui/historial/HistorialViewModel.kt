@@ -9,6 +9,7 @@ import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.relaciones.VentaConDetalles
 import com.typdevstudio.typos_movil.datos.repositorio.ConfiguracionRepositorio
 import com.typdevstudio.typos_movil.datos.repositorio.VentaRepositorio
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -146,8 +147,15 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun iniciarAnulacion() {
-        _motivoAnulacion.value = ""
-        _mostrarDialogoAnular.value = true
+        viewModelScope.launch {
+            if (!LicenciaGuard.puedeEmitir()) {
+                _mensajeAlerta.value = LicenciaGuard.mensajeAccionBloqueada()
+                _esErrorAlerta.value = true
+                return@launch
+            }
+            _motivoAnulacion.value = ""
+            _mostrarDialogoAnular.value = true
+        }
     }
 
     fun cancelarAnulacion() {
@@ -214,6 +222,12 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
         _mostrarDialogoAnular.value = false
 
         viewModelScope.launch {
+            if (!LicenciaGuard.puedeEmitir()) {
+                _mensajeAlerta.value = LicenciaGuard.mensajeAccionBloqueada()
+                _esErrorAlerta.value = true
+                _estaAnulando.value = false
+                return@launch
+            }
             try {
                 ventaRepositorio.anularVenta(idVenta, motivo)
                 val ventaActualizada = ventaRepositorio.obtenerVentaPorId(idVenta)

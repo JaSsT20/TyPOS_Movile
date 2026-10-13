@@ -9,6 +9,7 @@ import com.typdevstudio.typos_movil.datos.impresion.ServicioImpresoraBluetooth
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.entidades.ConfiguracionNegocioEntidad
 import com.typdevstudio.typos_movil.datos.repositorio.ConfiguracionRepositorio
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,8 +17,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
-import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
 
 data class ConfiguracionUiState(
     val nombreNegocio: String = "Mi Tienda",
@@ -42,10 +41,6 @@ data class ConfiguracionUiState(
     val columnasPersonalizadas: Int = 32,
     val modoTema: Int = 0, // 0: Sistema, 1: Claro, 2: Oscuro
     val dispositivosDisponibles: List<DispositivoBluetoothPos> = emptyList(),
-    val estadoLicencia: EstadoLicencia = EstadoLicencia.SinLicencia,
-    val serialDispositivo: String = "",
-    val claveLicenciaNueva: String = "",
-    val estaActivandoLicencia: Boolean = false,
     val estaGuardando: Boolean = false,
     val estaImprimiendoPrueba: Boolean = false,
     val estaBuscandoActualizaciones: Boolean = false,
@@ -58,23 +53,19 @@ data class ConfiguracionUiState(
 class ConfiguracionViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repositorio: ConfiguracionRepositorio
-    private val licenciaRepositorio: LicenciaRepositorio
-    val serialDispositivo: String = com.typdevstudio.typos_movil.utilidades.licencia.IdDispositivo.obtenerSerialDispositivo(application)
 
-    private val _uiState = MutableStateFlow(ConfiguracionUiState(serialDispositivo = serialDispositivo))
+    private val _uiState = MutableStateFlow(ConfiguracionUiState())
     val uiState: StateFlow<ConfiguracionUiState> = _uiState.asStateFlow()
 
     init {
         val bd = AppBaseDatos.obtenerBaseDatos(application)
         repositorio = ConfiguracionRepositorio(bd.configuracionNegocioDao())
-        licenciaRepositorio = LicenciaRepositorio(bd.licenciaDao(), serialDispositivo)
         cargarConfiguracion()
     }
 
     fun cargarConfiguracion() {
         viewModelScope.launch {
             val config = repositorio.obtenerConfiguracionDirecta()
-            val estadoLic = licenciaRepositorio.verificarEstadoLicencia()
             val mmTexto = if (config.tamanoPapelImpresora > 0) config.tamanoPapelImpresora.toString() else "58"
             _uiState.update {
                 it.copy(
@@ -98,8 +89,7 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                     tamanoPapel = config.tamanoPapelImpresora,
                     anchoMilimetrosPersonalizado = mmTexto,
                     columnasPersonalizadas = config.columnasPersonalizadas,
-                    modoTema = config.modoTema,
-                    estadoLicencia = estadoLic
+                    modoTema = config.modoTema
                 )
             }
             buscarDispositivosBluetooth()
@@ -256,6 +246,14 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
         _uiState.update { it.copy(estaGuardando = true, mensajeAlerta = null) }
 
         viewModelScope.launch {
+            // En modo solo consulta solo se puede cambiar la impresora (guardarImpresora), que hace falta para reimprimir.
+            if (!LicenciaGuard.puedeEmitir()) {
+                _uiState.update {
+                    it.copy(estaGuardando = false, mensajeAlerta = LicenciaGuard.mensajeAccionBloqueada(), esErrorAlerta = true)
+                }
+                cargarConfiguracion() // descarta los cambios que no se pudieron guardar
+                return@launch
+            }
             try {
                 val entidad = ConfiguracionNegocioEntidad(
                     id = 1,
@@ -287,6 +285,44 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                         estaGuardando = false,
                         guardadoExitoso = true,
                         mensajeAlerta = "Configuración guardada correctamente",
+                        esErrorAlerta = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        estaGuardando = false,
+                        mensajeAlerta = "Error al guardar: ${e.localizedMessage ?: "Error desconocido"}",
+                        esErrorAlerta = true
+                    )
+                }
+            }
+        }
+    }
+
+    /** Guarda solo la impresora y el papel. Se permite incluso en modo solo consulta, para poder reimprimir. */
+    fun guardarImpresora() {
+        val estado = _uiState.value
+        val mmInt = estado.anchoMilimetrosPersonalizado.toIntOrNull() ?: 58
+
+        _uiState.update { it.copy(estaGuardando = true, mensajeAlerta = null) }
+
+        viewModelScope.launch {
+            try {
+                val actual = repositorio.obtenerConfiguracionDirecta()
+                repositorio.guardarConfiguracion(
+                    actual.copy(
+                        nombreImpresora = estado.nombreImpresora,
+                        direccionMacImpresora = estado.direccionMacImpresora,
+                        tamanoPapelImpresora = mmInt,
+                        columnasPersonalizadas = estado.columnasPersonalizadas
+                    )
+                )
+                _uiState.update {
+                    it.copy(
+                        estaGuardando = false,
+                        guardadoExitoso = true,
+                        mensajeAlerta = "Impresora guardada correctamente",
                         esErrorAlerta = false
                     )
                 }
@@ -424,49 +460,8 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
         _uiState.update { it.copy(infoActualizacion = null) }
     }
 
-    fun onClaveLicenciaNuevaCambiada(clave: String) {
-        val soloAlfanumerico = clave.replace("-", "").replace(" ", "").trim().uppercase().take(16)
-        val formateada = soloAlfanumerico.chunked(4).joinToString("-")
-        _uiState.update { it.copy(claveLicenciaNueva = formateada) }
-    }
-
-    fun activarLicenciaNueva() {
-        val clave = _uiState.value.claveLicenciaNueva.trim()
-        if (clave.isBlank()) {
-            _uiState.update {
-                it.copy(
-                    mensajeAlerta = "Por favor ingresa la clave de licencia de 16 caracteres",
-                    esErrorAlerta = true
-                )
-            }
-            return
-        }
-
-        _uiState.update { it.copy(estaActivandoLicencia = true, mensajeAlerta = null) }
-
-        viewModelScope.launch {
-            val resultado = licenciaRepositorio.activarLicencia(clave)
-            if (resultado.esValida && !resultado.estaVencida) {
-                val nuevoEstado = licenciaRepositorio.verificarEstadoLicencia()
-                _uiState.update {
-                    it.copy(
-                        estaActivandoLicencia = false,
-                        estadoLicencia = nuevoEstado,
-                        claveLicenciaNueva = "",
-                        mensajeAlerta = "¡Licencia activada con éxito! Válida por ${resultado.diasValidez} días.",
-                        esErrorAlerta = false
-                    )
-                }
-            } else {
-                _uiState.update {
-                    it.copy(
-                        estaActivandoLicencia = false,
-                        mensajeAlerta = resultado.mensajeError.ifBlank { "Clave de licencia incorrecta o inválida" },
-                        esErrorAlerta = true
-                    )
-                }
-            }
-        }
+    fun mostrarAlerta(mensaje: String, esError: Boolean) {
+        _uiState.update { it.copy(mensajeAlerta = mensaje, esErrorAlerta = esError) }
     }
 
     fun limpiarAlerta() {

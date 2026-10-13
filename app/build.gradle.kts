@@ -20,10 +20,30 @@ android {
         ndk {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
+
+        // Licencias en la nube: clave pública ECDSA P-256 (Base64 de SubjectPublicKeyInfo) con la que se verifican
+        // los tokens. TODO: es una clave de PRUEBA; reemplazarla por la de producción antes de publicar un release.
+        buildConfigField(
+            "String",
+            "CLAVE_PUBLICA_LICENCIAS",
+            "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0/PmdlivtoC2d6SDoUSP6PjmAonBAbFsf/GtQ5XN6xdfij1uy068sHd9XzVdsJQ8ACsMeJm8Kl6hS1UH8UFvlg==\""
+        )
+
+        // Contacto que aparece en los avisos de vencimiento de la licencia (5 días antes y el mismo día).
+        buildConfigField("String", "CONTACTO_LICENCIA_NOMBRE", "\"T&P DevStudio\"")
+        buildConfigField("String", "CONTACTO_LICENCIA_TELEFONO", "\"+1 (849) 359-4927\"")
     }
 
     buildTypes {
+        debug {
+            // API de licencias local de pruebas. Se cambia sin tocar código con -PlicenciasUrlApiDebug=...
+            // (o en gradle.properties). La IP debe estar permitida en src/debug/res/xml/network_security_config.xml.
+            val urlApiDebug = providers.gradleProperty("licenciasUrlApiDebug").getOrElse("http://192.168.1.2:5109/api/v1")
+            buildConfigField("String", "URL_API_LICENCIAS", "\"$urlApiDebug\"")
+        }
         release {
+            // TODO: dominio HTTPS real del servidor IIS antes de publicar un release que use la licencia nueva.
+            buildConfigField("String", "URL_API_LICENCIAS", "\"https://TU-DOMINIO/api/v1\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -71,7 +91,11 @@ dependencies {
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.barcode.scanning)
 
+    // Validación de la licencia en segundo plano
+    implementation(libs.androidx.work.runtime.ktx)
+
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

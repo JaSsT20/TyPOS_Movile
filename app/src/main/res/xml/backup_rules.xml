@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+   Reglas de respaldo automático para Android 11 y anteriores.
+   Android 12+ usa data_extraction_rules.xml (mantener ambos archivos iguales).
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Estado de la licencia en la nube: se cifra con una llave del Keystore que no viaja en el
+         respaldo, y restaurarlo podría deshacer un bloqueo. Todo lo demás se respalda como antes. -->
+    <exclude domain="sharedpref" path="licencia_nube.xml" />
 </full-backup-content>

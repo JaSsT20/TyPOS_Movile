@@ -71,6 +71,7 @@ import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import com.typdevstudio.typos_movil.utilidades.licencia.CifradorTokensUsuario
 import com.typdevstudio.typos_movil.utilidades.licencia.InfoTokenUsuario
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import kotlinx.coroutines.launch
 
 @Composable
@@ -100,9 +101,14 @@ fun DialogoActivarUsuario(
 
         // Validar en la base de datos si el usuario ya existe
         coroutineScope.launch {
+            val motivoLicencia = LicenciaGuard.actualizar().motivoParaNoCrearUsuario(usuarioRepositorio.contarUsuariosActivos())
             if (usuarioRepositorio.existeUsuario(res.nombreUsuario)) {
                 infoToken = null
                 mensajeError = "El usuario '${res.nombreUsuario}' ya está registrado en este dispositivo."
+            } else if (motivoLicencia != null) {
+                // Se avisa antes de pedir la contraseña: modo solo consulta o límite de usuarios del plan.
+                infoToken = null
+                mensajeError = motivoLicencia
             } else {
                 infoToken = res
                 mensajeError = null
@@ -125,6 +131,14 @@ fun DialogoActivarUsuario(
         mensajeError = null
 
         coroutineScope.launch {
+            // Modo solo consulta y límite max_usuarios del plan. El primer usuario siempre se permite:
+            // sin él nadie podría entrar a activar la licencia.
+            val motivoLicencia = LicenciaGuard.actualizar().motivoParaNoCrearUsuario(usuarioRepositorio.contarUsuariosActivos())
+            if (motivoLicencia != null) {
+                estaGuardando = false
+                mensajeError = motivoLicencia
+                return@launch
+            }
             val exito = usuarioRepositorio.registrarNuevoUsuario(
                 nombreUsuario = token.nombreUsuario,
                 nombreCompleto = token.nombreCompleto,

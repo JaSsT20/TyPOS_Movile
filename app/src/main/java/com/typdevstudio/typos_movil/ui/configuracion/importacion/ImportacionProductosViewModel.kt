@@ -13,6 +13,8 @@ import com.typdevstudio.typos_movil.utilidades.importacion.ImportacionUiState
 import com.typdevstudio.typos_movil.utilidades.importacion.LectorCsvProductos
 import com.typdevstudio.typos_movil.utilidades.importacion.PasoImportacion
 import com.typdevstudio.typos_movil.utilidades.importacion.ProductoImportadoUi
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -177,6 +179,16 @@ class ImportacionProductosViewModel(application: Application) : AndroidViewModel
         }
 
         viewModelScope.launch {
+            LicenciaGuard.motivoBloqueo(ModulosLicencia.INVENTARIO, "Inventario")?.let { motivo ->
+                _uiState.update {
+                    it.copy(
+                        estaGuardandoEnBd = false,
+                        pasoActual = estadoActual.pasoActual,
+                        mensajeError = motivo
+                    )
+                }
+                return@launch
+            }
             try {
                 val usuarioActivo = GestorSesion.usuarioActivo.value
                 var contadorActualizados = 0

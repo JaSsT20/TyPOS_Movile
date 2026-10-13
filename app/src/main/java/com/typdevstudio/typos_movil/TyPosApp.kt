@@ -3,6 +3,7 @@ package com.typdevstudio.typos_movil
 import android.app.Application
 import android.util.Log
 import com.typdevstudio.typos_movil.ui.error.PantallaErrorActivity
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import com.typdevstudio.typos_movil.utilidades.logs.GestorLogsError
 import kotlin.system.exitProcess
 
@@ -11,6 +12,7 @@ class TyPosApp : Application() {
     override fun onCreate() {
         super.onCreate()
         configurarCapturadorGlobalErrores()
+        LicenciaGuard.inicializar(this)
     }
 
     private fun configurarCapturadorGlobalErrores() {

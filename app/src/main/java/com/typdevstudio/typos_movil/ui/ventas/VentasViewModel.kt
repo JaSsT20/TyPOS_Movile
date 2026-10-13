@@ -10,6 +10,8 @@ import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.VentaEntidad
 import com.typdevstudio.typos_movil.datos.repositorio.ProductoRepositorio
 import com.typdevstudio.typos_movil.datos.repositorio.VentaRepositorio
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -361,6 +363,10 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
         _cobroState.update { it.copy(estaProcesando = true, mensajeError = null) }
 
         viewModelScope.launch {
+            LicenciaGuard.motivoBloqueo(ModulosLicencia.FACTURACION, "Facturación")?.let { motivo ->
+                _cobroState.update { it.copy(estaProcesando = false, mensajeError = motivo) }
+                return@launch
+            }
             try {
                 // Validación de stock en tiempo real
                 val itemsActuales = _carrito.value

@@ -89,6 +89,8 @@ import androidx.compose.ui.unit.sp
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.CampoTextoPos
 import com.typdevstudio.typos_movil.ui.componentes.DialogoEscanerCodigoBarras
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
@@ -999,7 +1001,11 @@ fun PantallaFormularioProducto(
                         )
                     }
 
-                    if (estado.tipoItem == "Servicio") {
+                    // El control de stock es parte del módulo "inventario" del plan; el catálogo siempre está disponible.
+                    val situacionLicencia by LicenciaGuard.situacion.collectAsState()
+                    val inventarioIncluido = situacionLicencia.moduloIncluido(ModulosLicencia.INVENTARIO)
+
+                    if (estado.tipoItem == "Servicio" || !inventarioIncluido) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1019,7 +1025,8 @@ fun PantallaFormularioProducto(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Los servicios no manejan inventario ni control de stock.",
+                                    text = if (estado.tipoItem == "Servicio") "Los servicios no manejan inventario ni control de stock."
+                                        else ModulosLicencia.mensajeNoIncluido("Inventario"),
                                     fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )

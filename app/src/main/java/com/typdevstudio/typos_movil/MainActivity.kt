@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.ui.navegacion.NavegacionApp
 import com.typdevstudio.typos_movil.ui.theme.TyPOS_MovilTheme
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,5 +29,11 @@ class MainActivity : ComponentActivity() {
                 NavegacionApp()
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Al volver a la app: valida la licencia en segundo plano si pasaron más de 12 horas (nunca bloquea).
+        LicenciaGuard.validarSiHaceFalta()
     }
 }

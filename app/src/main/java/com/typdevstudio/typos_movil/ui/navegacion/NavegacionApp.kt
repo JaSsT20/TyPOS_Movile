@@ -7,27 +7,38 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import android.widget.Toast
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
-import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia
+import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.DialogoActualizacion
+import com.typdevstudio.typos_movil.ui.componentes.DialogoPos
+import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
+import com.typdevstudio.typos_movil.ui.licencia.BloqueContactoLicencia
+import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
+import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.configuracion.ConfiguracionViewModel
 import com.typdevstudio.typos_movil.ui.configuracion.PantallaConfiguracion
 import com.typdevstudio.typos_movil.ui.historial.HistorialViewModel
 import com.typdevstudio.typos_movil.ui.historial.PantallaHistorialVentas
-import com.typdevstudio.typos_movil.ui.licencia.DialogoLicenciaBloqueada
+import com.typdevstudio.typos_movil.ui.licencia.DialogoAvisoVencimiento
 import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
+import com.typdevstudio.typos_movil.ui.licencia.PantallaLicencia
 import com.typdevstudio.typos_movil.ui.login.PantallaLogin
 import com.typdevstudio.typos_movil.ui.principal.PantallaPrincipal
 import com.typdevstudio.typos_movil.ui.productos.PantallaFormularioProducto
@@ -37,6 +48,9 @@ import com.typdevstudio.typos_movil.ui.ventas.PantallaVentas
 import com.typdevstudio.typos_movil.ui.ventas.VentasViewModel
 import com.typdevstudio.typos_movil.utilidades.actualizador.ActualizadorApp
 import com.typdevstudio.typos_movil.utilidades.actualizador.InfoActualizacion
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
+import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
+import kotlinx.coroutines.launch
 
 sealed class Ruta(val ruta: String) {
     data object Login : Ruta("login")
@@ -46,6 +60,7 @@ sealed class Ruta(val ruta: String) {
     data object Ventas : Ruta("ventas")
     data object Historial : Ruta("historial")
     data object Configuracion : Ruta("configuracion")
+    data object Licencia : Ruta("licencia")
 }
 
 @Composable
@@ -56,10 +71,39 @@ fun NavegacionApp() {
     val ventasViewModel: VentasViewModel = viewModel()
     val configuracionViewModel: ConfiguracionViewModel = viewModel()
     val historialViewModel: HistorialViewModel = viewModel()
-    val licenciaViewModel: LicenciaViewModel = viewModel()
-
-    val estadoLicenciaUi by licenciaViewModel.uiState.collectAsState()
     var infoActualizacion by remember { mutableStateOf<InfoActualizacion?>(null) }
+    var mostrarAvisoSoloAdministrador by remember { mutableStateOf(false) }
+    var moduloNoIncluido by remember { mutableStateOf<String?>(null) }
+
+    // Módulos del plan: si el plan no incluye el módulo, se explica en vez de abrir la pantalla.
+    val navegarAModulo: (String, String, String) -> Unit = { ruta, modulo, nombreModulo ->
+        if (LicenciaGuard.situacion.value.moduloIncluido(modulo)) {
+            controladorNavegacion.navigate(ruta)
+        } else {
+            moduloNoIncluido = nombreModulo
+        }
+    }
+    val alcance = rememberCoroutineScope()
+    val usuarioDao = remember { AppBaseDatos.obtenerBaseDatos(contexto).usuarioDao() }
+
+    // Licencia, Configuración y Respaldos son solo para administradores. Si el teléfono no tiene
+    // ningún administrador se deja entrar a cualquiera (avisando), para que nadie quede sin acceso.
+    val navegarComoAdministrador: (String) -> Unit = { ruta ->
+        alcance.launch {
+            if (GestorSesion.tieneAccesoAdministrador(usuarioDao)) {
+                if (!GestorSesion.esAdministrador()) {
+                    Toast.makeText(
+                        contexto,
+                        "No hay ningún usuario administrador en este teléfono. Crea uno para proteger esta sección.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                controladorNavegacion.navigate(ruta) { launchSingleTop = true }
+            } else {
+                mostrarAvisoSoloAdministrador = true
+            }
+        }
+    }
 
     // 1. Verificación automática y no intrusiva de actualizaciones al arrancar la app
     LaunchedEffect(Unit) {
@@ -69,20 +113,42 @@ fun NavegacionApp() {
         }
     }
 
-    // 2. Control reactivo de caducidad: Si la licencia expira, forzar salida inmediata al Login
-    LaunchedEffect(estadoLicenciaUi.estado, estadoLicenciaUi.estaVerificandoInicial) {
-        if (!estadoLicenciaUi.estaVerificandoInicial && estadoLicenciaUi.estado !is EstadoLicencia.Activa) {
-            if (GestorSesion.usuarioActivo.value != null) {
-                GestorSesion.cerrarSesion()
-                controladorNavegacion.navigate(Ruta.Login.ruta) {
-                    popUpTo(0) { inclusive = true }
-                }
+    // 2. La licencia ya no bloquea la app con un modal ni cierra la sesión: LicenciaGuard pasa a modo
+    // solo consulta y las pantallas muestran BannerLicencia con el motivo.
+    if (mostrarAvisoSoloAdministrador) {
+        DialogoPos(
+            alDescartar = { mostrarAvisoSoloAdministrador = false },
+            icono = Icons.Filled.AdminPanelSettings,
+            colorIcono = AzulPrimario,
+            titulo = "Solo para administradores",
+            mensaje = "Esta sección solo la puede abrir un usuario administrador. Pídele que inicie sesión.",
+            acciones = {
+                BotonPos(texto = "Entendido", alHacerClic = { mostrarAvisoSoloAdministrador = false })
             }
-        }
+        )
     }
 
-    // 3. Control estricto de Licenciamiento (Modal no descartable de bloqueo si no hay licencia o está vencida)
-    DialogoLicenciaBloqueada(viewModel = licenciaViewModel)
+    moduloNoIncluido?.let { nombreModulo ->
+        DialogoPos(
+            alDescartar = { moduloNoIncluido = null },
+            icono = Icons.Filled.Extension,
+            colorIcono = AmarilloAdvertencia,
+            titulo = "Módulo no incluido",
+            mensaje = "El módulo $nombreModulo no está incluido en tu plan. Para agregarlo a tu licencia:",
+            contenido = {
+                BloqueContactoLicencia(
+                    mensajeWhatsApp = "Hola, quiero agregar el módulo $nombreModulo a mi licencia de TyPOS Móvil.",
+                    alUsarContacto = { moduloNoIncluido = null }
+                )
+            },
+            acciones = {
+                BotonPos(texto = "Entendido", alHacerClic = { moduloNoIncluido = null }, variante = VarianteBoton.SECUNDARIO)
+            }
+        )
+    }
+
+    // Aviso de vencimiento de la licencia (5 días antes y el mismo día), con el contacto para renovar
+    DialogoAvisoVencimiento()
 
     // Modal de nueva actualización encontrada al abrir
     infoActualizacion?.let { info ->
@@ -134,7 +200,7 @@ fun NavegacionApp() {
         composable(Ruta.Principal.ruta) {
             PantallaPrincipal(
                 alNavegarAVentas = {
-                    controladorNavegacion.navigate(Ruta.Ventas.ruta)
+                    navegarAModulo(Ruta.Ventas.ruta, ModulosLicencia.FACTURACION, "Facturación")
                 },
                 alNavegarAProductos = {
                     controladorNavegacion.navigate(Ruta.Productos.ruta)
@@ -143,7 +209,10 @@ fun NavegacionApp() {
                     controladorNavegacion.navigate(Ruta.Historial.ruta)
                 },
                 alNavegarAConfiguracion = {
-                    controladorNavegacion.navigate(Ruta.Configuracion.ruta)
+                    navegarComoAdministrador(Ruta.Configuracion.ruta)
+                },
+                alNavegarALicencia = {
+                    navegarComoAdministrador(Ruta.Licencia.ruta)
                 },
                 alCerrarSesion = {
                     controladorNavegacion.navigate(Ruta.Login.ruta) {
@@ -160,6 +229,9 @@ fun NavegacionApp() {
                 viewModel = ventasViewModel,
                 alVolver = {
                     controladorNavegacion.popBackStack()
+                },
+                alNavegarALicencia = {
+                    navegarComoAdministrador(Ruta.Licencia.ruta)
                 }
             )
         }
@@ -205,6 +277,20 @@ fun NavegacionApp() {
                 },
                 alNavegarAProductos = {
                     controladorNavegacion.navigate(Ruta.Productos.ruta)
+                },
+                alNavegarALicencia = {
+                    // Configuración ya exige administrador para entrar.
+                    controladorNavegacion.navigate(Ruta.Licencia.ruta) { launchSingleTop = true }
+                }
+            )
+        }
+
+        composable(Ruta.Licencia.ruta) {
+            val licenciaViewModel: LicenciaViewModel = viewModel()
+            PantallaLicencia(
+                viewModel = licenciaViewModel,
+                alVolver = {
+                    controladorNavegacion.popBackStack()
                 }
             )
         }

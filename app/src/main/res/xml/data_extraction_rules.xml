@@ -1,19 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
+   Reglas de respaldo y transferencia para Android 12+.
+   Android 11 y anteriores usan backup_rules.xml (mantener ambos archivos iguales).
    See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
 -->
 <data-extraction-rules>
+    <!-- Estado de la licencia en la nube: se cifra con una llave del Keystore que no viaja en el
+         respaldo, y restaurarlo podría deshacer un bloqueo. Todo lo demás se respalda como antes. -->
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="licencia_nube.xml" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="licencia_nube.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>
