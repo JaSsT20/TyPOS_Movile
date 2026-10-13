@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -128,7 +129,7 @@ fun PantallaProductos(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Catálogo de Productos",
+                        text = "Mis Productos y Servicios",
                         fontWeight = FontWeight.Bold,
                         color = Blanco
                     )
@@ -157,7 +158,7 @@ fun PantallaProductos(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Nuevo producto",
+                    contentDescription = "Nuevo producto o servicio",
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -304,14 +305,14 @@ fun PantallaProductos(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Mostrando ${productos.size} productos",
+                    text = "Mostrando ${productos.size} registros",
                     fontSize = 13.sp,
                     color = GrisSecundario,
                     fontWeight = FontWeight.Medium
                 )
             }
 
-            // Lista de productos
+            // Lista de productos y servicios
             if (productos.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -335,14 +336,14 @@ fun PantallaProductos(
                         }
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "No se encontraron productos",
+                            text = "No se encontraron registros",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Prueba cambiando los filtros o agrega un nuevo producto",
+                            text = "Prueba cambiando los filtros o agrega un nuevo producto o servicio",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -459,8 +460,32 @@ fun TarjetaProductoModerna(
                         )
                     }
 
-                    // Badge de estado de stock
-                    if (producto.controlaStock) {
+                    // Badge de estado de stock o servicio
+                    if (producto.tipoItem == "Servicio") {
+                        Box(
+                            modifier = Modifier
+                                .background(CelesteInformacion.copy(alpha = 0.15f), shape = RoundedCornerShape(6.dp))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Build,
+                                    contentDescription = null,
+                                    tint = CelesteInformacion,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "Servicio",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CelesteInformacion
+                                )
+                            }
+                        }
+                    } else if (producto.controlaStock) {
                         val (colorFondo, colorTexto, textoStock) = when {
                             producto.stock <= 0 -> Triple(RojoError.copy(alpha = 0.12f), RojoError, "Agotado")
                             producto.stock <= 5 -> Triple(AmarilloAdvertencia.copy(alpha = 0.15f), AmarilloAdvertencia, "Stock: ${producto.stock.toInt()}")
@@ -481,14 +506,14 @@ fun TarjetaProductoModerna(
                     } else {
                         Box(
                             modifier = Modifier
-                                .background(CelesteInformacion.copy(alpha = 0.12f), shape = RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(6.dp))
                                 .padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Servicio",
+                                text = "Sin límite",
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = CelesteInformacion
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

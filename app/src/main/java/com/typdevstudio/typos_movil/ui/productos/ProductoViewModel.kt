@@ -18,15 +18,18 @@ import kotlinx.coroutines.launch
 
 enum class FiltroStock(val etiqueta: String) {
     TODOS("Todos"),
+    PRODUCTOS("Productos"),
+    SERVICIOS("Servicios"),
     EN_STOCK("En Stock"),
     STOCK_BAJO("Stock Bajo (≤ 5)"),
     AGOTADOS("Agotados"),
-    SIN_STOCK("Servicios (Sin stock)")
+    SIN_CONTROL_STOCK("Sin Control de Stock")
 }
 
 data class FormularioProductoUiState(
     val id: Long = 0L,
     val nombre: String = "",
+    val tipoItem: String = "Producto", // "Producto" o "Servicio"
     val codigoBarras: String = "",
     val descripcion: String = "",
     val precioCosto: String = "",
@@ -95,13 +98,15 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
             // Filtro por categoría
             val coincideCategoria = cat == "Todas" || producto.categoria.equals(cat, ignoreCase = true)
 
-            // Filtro por stock
+            // Filtro por stock / tipo
             val coincideStock = when (stockFilter) {
                 FiltroStock.TODOS -> true
-                FiltroStock.EN_STOCK -> producto.controlaStock && producto.stock > 5
-                FiltroStock.STOCK_BAJO -> producto.controlaStock && producto.stock in 0.01..5.0
-                FiltroStock.AGOTADOS -> producto.controlaStock && producto.stock <= 0
-                FiltroStock.SIN_STOCK -> !producto.controlaStock
+                FiltroStock.PRODUCTOS -> producto.tipoItem.equals("Producto", ignoreCase = true)
+                FiltroStock.SERVICIOS -> producto.tipoItem.equals("Servicio", ignoreCase = true)
+                FiltroStock.EN_STOCK -> producto.tipoItem.equals("Producto", ignoreCase = true) && producto.controlaStock && producto.stock > 5
+                FiltroStock.STOCK_BAJO -> producto.tipoItem.equals("Producto", ignoreCase = true) && producto.controlaStock && producto.stock in 0.01..5.0
+                FiltroStock.AGOTADOS -> producto.tipoItem.equals("Producto", ignoreCase = true) && producto.controlaStock && producto.stock <= 0
+                FiltroStock.SIN_CONTROL_STOCK -> producto.tipoItem.equals("Producto", ignoreCase = true) && !producto.controlaStock
             }
 
             coincideTexto && coincideCategoria && coincideStock
@@ -135,6 +140,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
         _formularioState.value = FormularioProductoUiState(
             id = producto.id,
             nombre = producto.nombre,
+            tipoItem = producto.tipoItem,
             codigoBarras = producto.codigoBarras ?: "",
             descripcion = producto.descripcion ?: "",
             precioCosto = if (producto.precioCosto > 0) producto.precioCosto.toString() else "",
@@ -172,6 +178,15 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
                 val nuevaLista = mutableListOf(elemento) + estado.imagenes.filterIndexed { i, _ -> i != indice }
                 estado.copy(imagenes = nuevaLista)
             } else estado
+        }
+    }
+
+    fun onTipoItemCambiado(tipo: String) {
+        _formularioState.update { estado ->
+            estado.copy(
+                tipoItem = tipo,
+                controlaStock = if (tipo == "Servicio") false else estado.controlaStock
+            )
         }
     }
 
@@ -227,7 +242,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
         var errorPrecioVenta: String? = null
 
         if (nombreTrim.isEmpty()) {
-            errorNombre = "El nombre del producto es obligatorio"
+            errorNombre = "El nombre del producto o servicio es obligatorio"
             hayError = true
         }
 
@@ -256,6 +271,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
                     idUsuario = usuarioActivo?.id,
                     codigoBarras = estado.codigoBarras.trim().ifEmpty { null },
                     nombre = nombreTrim,
+                    tipoItem = estado.tipoItem,
                     descripcion = estado.descripcion.trim().ifEmpty { null },
                     precioCosto = precioCostoDouble,
                     precioVenta = precioVentaDouble!!,
@@ -276,7 +292,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
                 _formularioState.update {
                     it.copy(
                         estaGuardando = false,
-                        mensajeErrorGeneral = "Error al guardar el producto: ${e.localizedMessage ?: "Error desconocido"}"
+                        mensajeErrorGeneral = "Error al guardar: ${e.localizedMessage ?: "Error desconocido"}"
                     )
                 }
             }

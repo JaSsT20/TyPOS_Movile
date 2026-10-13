@@ -1,9 +1,14 @@
 package com.typdevstudio.typos_movil.ui.productos
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
@@ -123,6 +129,31 @@ fun PantallaFormularioProducto(
         uriCamaraTemporal = null
     }
 
+    // Función auxiliar para preparar el archivo e iniciar la cámara
+    fun iniciarCapturaFoto() {
+        val par = GestorImagenesProducto.crearArchivoTemporalParaCamara(contexto)
+        if (par != null) {
+            archivoCamaraTemporal = par.first
+            uriCamaraTemporal = par.second
+            try {
+                launcherCamara.launch(par.second)
+            } catch (e: Exception) {
+                Toast.makeText(contexto, "No se pudo iniciar la cámara: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Launcher para solicitar permiso de cámara en tiempo de ejecución (Android 6.0+)
+    val launcherPermisoCamara = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { concedido ->
+        if (concedido) {
+            iniciarCapturaFoto()
+        } else {
+            Toast.makeText(contexto, "Se requiere permiso de cámara para tomar fotos de productos.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     // Launcher para seleccionar imágenes de la galería o explorador de archivos
     val launcherGaleria = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -189,11 +220,15 @@ fun PantallaFormularioProducto(
                         .fillMaxWidth()
                         .clickable {
                             mostrarModalOrigenFoto = false
-                            val par = GestorImagenesProducto.crearArchivoTemporalParaCamara(contexto)
-                            if (par != null) {
-                                archivoCamaraTemporal = par.first
-                                uriCamaraTemporal = par.second
-                                launcherCamara.launch(par.second)
+                            val tienePermiso = ContextCompat.checkSelfPermission(
+                                contexto,
+                                Manifest.permission.CAMERA
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                            if (tienePermiso) {
+                                iniciarCapturaFoto()
+                            } else {
+                                launcherPermisoCamara.launch(Manifest.permission.CAMERA)
                             }
                         }
                 ) {
@@ -293,13 +328,17 @@ fun PantallaFormularioProducto(
                 title = {
                     Column {
                         Text(
-                            text = if (estado.id == 0L) "Nuevo Producto" else "Editar Producto",
+                            text = if (estado.id == 0L) {
+                                if (estado.tipoItem == "Servicio") "Nuevo Servicio" else "Nuevo Producto"
+                            } else {
+                                if (estado.tipoItem == "Servicio") "Editar Servicio" else "Editar Producto"
+                            },
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             color = Blanco
                         )
                         Text(
-                            text = if (estado.id == 0L) "Completa los datos del artículo" else "Modifica los detalles del producto",
+                            text = if (estado.id == 0L) "Completa los datos del registro" else "Modifica los detalles correspondientes",
                             fontSize = 12.sp,
                             color = Blanco.copy(alpha = 0.8f)
                         )
@@ -462,13 +501,94 @@ fun PantallaFormularioProducto(
                         )
                     }
 
+                    // Selector: Tipo de Item (Producto vs Servicio)
+                    Text(
+                        text = "Tipo de registro",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        val esProducto = estado.tipoItem == "Producto"
+                        val esServicio = estado.tipoItem == "Servicio"
+
+                        // Opción Producto
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (esProducto) AzulPrimario.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = BorderStroke(
+                                width = if (esProducto) 1.5.dp else 1.dp,
+                                color = if (esProducto) AzulPrimario else MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.onTipoItemCambiado("Producto") }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Inventory2,
+                                    contentDescription = null,
+                                    tint = if (esProducto) AzulPrimario else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Producto",
+                                    fontSize = 14.sp,
+                                    fontWeight = if (esProducto) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (esProducto) AzulPrimario else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        // Opción Servicio
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (esServicio) AzulPrimario.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            border = BorderStroke(
+                                width = if (esServicio) 1.5.dp else 1.dp,
+                                color = if (esServicio) AzulPrimario else MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { viewModel.onTipoItemCambiado("Servicio") }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Build,
+                                    contentDescription = null,
+                                    tint = if (esServicio) AzulPrimario else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Servicio",
+                                    fontSize = 14.sp,
+                                    fontWeight = if (esServicio) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (esServicio) AzulPrimario else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
                     // Campo Código de Barras con Botón de Escáner Integrado
                     OutlinedTextField(
                         value = estado.codigoBarras,
                         onValueChange = { viewModel.onCodigoBarrasCambiado(it) },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Código de barras / SKU (Opcional)") },
-                        placeholder = { Text("Ej: 7501030420102") },
+                        label = { Text(if (estado.tipoItem == "Servicio") "Código de servicio / Referencia (Opcional)" else "Código de barras / SKU (Opcional)") },
+                        placeholder = { Text(if (estado.tipoItem == "Servicio") "Ej: SERV-001" else "Ej: 7501030420102") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
                         trailingIcon = {
@@ -516,12 +636,12 @@ fun PantallaFormularioProducto(
                         )
                     )
 
-                    // Nombre del Producto
+                    // Nombre del Producto / Servicio
                     CampoTextoPos(
                         valor = estado.nombre,
                         alCambiarValor = { viewModel.onNombreCambiado(it) },
-                        etiqueta = "Nombre del producto *",
-                        iconoInicio = Icons.Filled.ShoppingBag,
+                        etiqueta = if (estado.tipoItem == "Servicio") "Nombre del servicio *" else "Nombre del producto *",
+                        iconoInicio = if (estado.tipoItem == "Servicio") Icons.Filled.Build else Icons.Filled.ShoppingBag,
                         mensajeError = estado.errorNombre,
                         opcionesTeclado = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
@@ -879,70 +999,98 @@ fun PantallaFormularioProducto(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (estado.controlaStock) AzulPrimarioClaro.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant)
-                            .border(
-                                width = 1.dp,
-                                color = if (estado.controlaStock) AzulPrimario.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { viewModel.onControlaStockCambiado(!estado.controlaStock) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                    if (estado.tipoItem == "Servicio") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(CelesteInformacion.copy(alpha = 0.12f))
+                                .border(1.dp, CelesteInformacion.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                .padding(14.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Controlar inventario (Stock)",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (estado.controlaStock) AzulPrimario else MaterialTheme.colorScheme.onSurface
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = CelesteInformacion,
+                                    modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = if (estado.controlaStock) "Descuenta unidades automáticamente al vender" else "Desactivado (Producto o Servicio sin límite)",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "Los servicios no manejan inventario ni control de stock.",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            Switch(
-                                checked = estado.controlaStock,
-                                onCheckedChange = { viewModel.onControlaStockCambiado(it) },
-                                thumbContent = {
-                                    Icon(
-                                        imageVector = if (estado.controlaStock) Icons.Filled.Check else Icons.Filled.Close,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
-                                        tint = if (estado.controlaStock) AzulPrimario else GrisMedio
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (estado.controlaStock) AzulPrimarioClaro.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant)
+                                .border(
+                                    width = 1.dp,
+                                    color = if (estado.controlaStock) AzulPrimario.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable { viewModel.onControlaStockCambiado(!estado.controlaStock) }
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Controlar inventario (Stock)",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (estado.controlaStock) AzulPrimario else MaterialTheme.colorScheme.onSurface
                                     )
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Blanco,
-                                    checkedTrackColor = AzulPrimario,
-                                    uncheckedThumbColor = Blanco,
-                                    uncheckedTrackColor = GrisMedio.copy(alpha = 0.5f),
-                                    uncheckedBorderColor = GrisMedio
+                                    Text(
+                                        text = if (estado.controlaStock) "Descuenta unidades automáticamente al vender" else "Desactivado (Producto sin límite de inventario)",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = estado.controlaStock,
+                                    onCheckedChange = { viewModel.onControlaStockCambiado(it) },
+                                    thumbContent = {
+                                        Icon(
+                                            imageVector = if (estado.controlaStock) Icons.Filled.Check else Icons.Filled.Close,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = if (estado.controlaStock) AzulPrimario else GrisMedio
+                                        )
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Blanco,
+                                        checkedTrackColor = AzulPrimario,
+                                        uncheckedThumbColor = Blanco,
+                                        uncheckedTrackColor = GrisMedio.copy(alpha = 0.5f),
+                                        uncheckedBorderColor = GrisMedio
+                                    )
+                                )
+                            }
+                        }
+
+                        if (estado.controlaStock) {
+                            CampoTextoPos(
+                                valor = estado.stock,
+                                alCambiarValor = { viewModel.onStockCambiado(it) },
+                                etiqueta = "Cantidad actual en inventario",
+                                iconoInicio = Icons.Filled.Inventory2,
+                                opcionesTeclado = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal,
+                                    imeAction = ImeAction.Done
                                 )
                             )
                         }
-                    }
-
-                    if (estado.controlaStock) {
-                        CampoTextoPos(
-                            valor = estado.stock,
-                            alCambiarValor = { viewModel.onStockCambiado(it) },
-                            etiqueta = "Cantidad actual en inventario",
-                            iconoInicio = Icons.Filled.Inventory2,
-                            opcionesTeclado = KeyboardOptions(
-                                keyboardType = KeyboardType.Decimal,
-                                imeAction = ImeAction.Done
-                            )
-                        )
                     }
                 }
             }
@@ -973,7 +1121,11 @@ fun PantallaFormularioProducto(
 
             // Botón Guardar
             BotonPos(
-                texto = if (estado.id == 0L) "Registrar Producto" else "Actualizar Producto",
+                texto = if (estado.id == 0L) {
+                    if (estado.tipoItem == "Servicio") "Registrar Servicio" else "Registrar Producto"
+                } else {
+                    if (estado.tipoItem == "Servicio") "Actualizar Servicio" else "Actualizar Producto"
+                },
                 alHacerClic = { viewModel.guardarProducto() },
                 estaCargando = estado.estaGuardando,
                 icono = Icons.Filled.Save

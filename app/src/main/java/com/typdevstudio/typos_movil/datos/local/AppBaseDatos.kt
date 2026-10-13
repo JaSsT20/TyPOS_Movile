@@ -64,12 +64,56 @@ val MIGRACION_8_9 = object : Migration(8, 9) {
         db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_cajero INTEGER NOT NULL DEFAULT 1")
         db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_cliente INTEGER NOT NULL DEFAULT 1")
         db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN mostrar_powered_by INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN texto_powered_by TEXT NOT NULL DEFAULT 'Powered by TyPOS Móvil'")
     }
 }
 
 val MIGRACION_9_10 = object : Migration(9, 10) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE productos ADD COLUMN imagenes_uri TEXT")
+    }
+}
+
+val MIGRACION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Garantiza que texto_powered_by exista si el dispositivo ya tenía registrada la versión 10 con la columna faltante
+        val cursor = db.query("PRAGMA table_info(configuracion_negocio)")
+        var columnaExiste = false
+        val nombreColumnaIndex = cursor.getColumnIndex("name")
+        if (nombreColumnaIndex != -1) {
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nombreColumnaIndex) == "texto_powered_by") {
+                    columnaExiste = true
+                    break
+                }
+            }
+        }
+        cursor.close()
+
+        if (!columnaExiste) {
+            db.execSQL("ALTER TABLE configuracion_negocio ADD COLUMN texto_powered_by TEXT NOT NULL DEFAULT 'Powered by TyPOS Móvil'")
+        }
+    }
+}
+
+val MIGRACION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        val cursor = db.query("PRAGMA table_info(productos)")
+        var columnaExiste = false
+        val nombreColumnaIndex = cursor.getColumnIndex("name")
+        if (nombreColumnaIndex != -1) {
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nombreColumnaIndex) == "tipo_item") {
+                    columnaExiste = true
+                    break
+                }
+            }
+        }
+        cursor.close()
+
+        if (!columnaExiste) {
+            db.execSQL("ALTER TABLE productos ADD COLUMN tipo_item TEXT NOT NULL DEFAULT 'Producto'")
+        }
     }
 }
 
@@ -82,7 +126,7 @@ val MIGRACION_9_10 = object : Migration(9, 10) {
         ConfiguracionNegocioEntidad::class,
         LicenciaEntidad::class
     ],
-    version = 10, // Versión 10: Soporte para imágenes de productos (hasta 3 fotos)
+    version = 12, // Versión 12: Clasificación de tipo_item ("Producto" o "Servicio")
     exportSchema = false
 )
 abstract class AppBaseDatos : RoomDatabase() {
@@ -104,7 +148,7 @@ abstract class AppBaseDatos : RoomDatabase() {
                     AppBaseDatos::class.java,
                     "typos_movil_bd.db"
                 )
-                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10)
+                    .addMigrations(MIGRACION_5_6, MIGRACION_6_7, MIGRACION_7_8, MIGRACION_8_9, MIGRACION_9_10, MIGRACION_10_11, MIGRACION_11_12)
                     .addCallback(CallbackInicial(contexto))
                     .fallbackToDestructiveMigration()
                     .build()

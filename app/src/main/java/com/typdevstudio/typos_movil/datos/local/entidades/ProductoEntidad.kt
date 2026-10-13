@@ -60,6 +60,9 @@ data class ProductoEntidad(
     @ColumnInfo(name = "controla_stock")
     val controlaStock: Boolean = true,
 
+    @ColumnInfo(name = "tipo_item")
+    val tipoItem: String = "Producto", // "Producto" o "Servicio"
+
     @ColumnInfo(name = "categoria")
     val categoria: String = "General",
 
