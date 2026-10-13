@@ -31,10 +31,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -120,6 +122,8 @@ fun PantallaHistorialVentas(
         }
     }
 
+    val contexto = androidx.compose.ui.platform.LocalContext.current
+
     // Modal de Detalle de Venta
     if (ventaSeleccionada != null) {
         DialogoDetalleVenta(
@@ -127,6 +131,8 @@ fun PantallaHistorialVentas(
             esVentaDeHoy = viewModel.esVentaDeHoy(ventaSeleccionada!!.venta.fecha),
             estaReimprimiendo = estaReimprimiendo,
             alReimprimir = { viewModel.reimprimirTicket(ventaSeleccionada!!) },
+            alCompartirPdf = { viewModel.compartirFacturaPdf(contexto, ventaSeleccionada!!) },
+            alVerPdf = { viewModel.verFacturaPdf(contexto, ventaSeleccionada!!) },
             alIniciarAnulacion = { viewModel.iniciarAnulacion() },
             alCerrar = { viewModel.seleccionarVenta(null) }
         )
@@ -549,6 +555,8 @@ fun DialogoDetalleVenta(
     esVentaDeHoy: Boolean,
     estaReimprimiendo: Boolean,
     alReimprimir: () -> Unit,
+    alCompartirPdf: () -> Unit,
+    alVerPdf: () -> Unit,
     alIniciarAnulacion: () -> Unit,
     alCerrar: () -> Unit
 ) {
@@ -755,10 +763,10 @@ fun DialogoDetalleVenta(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Botones de Acción: Reimprimir y Anular
+                // Botones de Acción: Reimprimir, Compartir PDF y Ver PDF
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Botón Reimprimir
                     BotonPos(
@@ -770,33 +778,50 @@ fun DialogoDetalleVenta(
                         modifier = Modifier.weight(1f)
                     )
 
-                    // Botón Anular Venta (Solo si no está cancelada y es de hoy)
-                    if (!esCancelada) {
-                        if (esVentaDeHoy) {
-                            BotonPos(
-                                texto = "Anular Venta",
-                                alHacerClic = alIniciarAnulacion,
-                                variante = VarianteBoton.PELIGRO,
-                                icono = Icons.Filled.Block,
-                                modifier = Modifier.weight(1f)
+                    // Botón Compartir PDF (WhatsApp)
+                    BotonPos(
+                        texto = "WhatsApp",
+                        alHacerClic = alCompartirPdf,
+                        variante = VarianteBoton.EXITO,
+                        icono = Icons.Filled.Share,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    // Botón Ver PDF
+                    BotonPos(
+                        texto = "PDF",
+                        alHacerClic = alVerPdf,
+                        variante = VarianteBoton.SECUNDARIO,
+                        icono = Icons.Filled.PictureAsPdf,
+                        modifier = Modifier.width(90.dp)
+                    )
+                }
+
+                // Botón Anular Venta (Solo si no está cancelada y es de hoy)
+                if (!esCancelada) {
+                    if (esVentaDeHoy) {
+                        BotonPos(
+                            texto = "Anular Venta",
+                            alHacerClic = alIniciarAnulacion,
+                            variante = VarianteBoton.PELIGRO,
+                            icono = Icons.Filled.Block
+                        )
+                    } else {
+                        // Desactivado si es de días anteriores
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Solo se pueden anular ventas realizadas hoy",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
                             )
-                        } else {
-                            // Desactivado si es de días anteriores
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No anulable (Solo del día)",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
                         }
                     }
                 }

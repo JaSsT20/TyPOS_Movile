@@ -270,6 +270,49 @@ class HistorialViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun compartirFacturaPdf(contexto: android.content.Context, ventaConDetalles: VentaConDetalles) {
+        viewModelScope.launch {
+            try {
+                val config = configuracionRepositorio.obtenerConfiguracionDirecta()
+                val archivo = com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.generarPdfFactura(
+                    contexto = contexto,
+                    venta = ventaConDetalles.venta,
+                    detalles = ventaConDetalles.detalles,
+                    configuracion = config
+                )
+                com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.compartirPdf(
+                    contexto = contexto,
+                    archivoPdf = archivo,
+                    venta = ventaConDetalles.venta
+                )
+            } catch (e: Exception) {
+                _mensajeAlerta.value = "Error al generar PDF: ${e.localizedMessage ?: "Error desconocido"}"
+                _esErrorAlerta.value = true
+            }
+        }
+    }
+
+    fun verFacturaPdf(contexto: android.content.Context, ventaConDetalles: VentaConDetalles) {
+        viewModelScope.launch {
+            try {
+                val config = configuracionRepositorio.obtenerConfiguracionDirecta()
+                val archivo = com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.generarPdfFactura(
+                    contexto = contexto,
+                    venta = ventaConDetalles.venta,
+                    detalles = ventaConDetalles.detalles,
+                    configuracion = config
+                )
+                com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.abrirPdf(
+                    contexto = contexto,
+                    archivoPdf = archivo
+                )
+            } catch (e: Exception) {
+                _mensajeAlerta.value = "Error al abrir PDF: ${e.localizedMessage ?: "Error desconocido"}"
+                _esErrorAlerta.value = true
+            }
+        }
+    }
+
     fun limpiarAlerta() {
         _mensajeAlerta.value = null
     }
