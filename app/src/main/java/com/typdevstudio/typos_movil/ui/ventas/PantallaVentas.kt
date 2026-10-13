@@ -24,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -64,6 +67,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -108,6 +112,8 @@ fun PantallaVentas(
     var mostrarEscanerCamara by remember { mutableStateOf(false) }
     var mostrarModalCarrito by remember { mutableStateOf(false) }
     var mostrarModalCobro by remember { mutableStateOf(false) }
+    var productoParaCantidad by remember { mutableStateOf<ProductoEntidad?>(null) }
+    var cantidadInicialDialogo by remember { mutableDoubleStateOf(1.0) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -122,6 +128,20 @@ fun PantallaVentas(
     val subtotalNeto by remember(carrito) { derivedStateOf { carrito.sumOf { it.subTotalNeto } } }
     val itbisTotal by remember(carrito) { derivedStateOf { carrito.sumOf { it.montoItbis } } }
     val cantidadArticulos by remember(carrito) { derivedStateOf { carrito.sumOf { it.cantidad.toInt() } } }
+
+    // Diálogo para especificar cantidad exacta de producto (ej: 100 unidades)
+    DialogoCantidadProducto(
+        mostrar = productoParaCantidad != null,
+        producto = productoParaCantidad,
+        cantidadInicial = cantidadInicialDialogo,
+        alConfirmar = { prod, nuevaCantidad ->
+            viewModel.agregarOActualizarCantidad(prod, nuevaCantidad)
+            productoParaCantidad = null
+        },
+        alDescartar = {
+            productoParaCantidad = null
+        }
+    )
 
     // Escáner de Código de Barras en Caja (Agrega al instante)
     DialogoEscanerCodigoBarras(
@@ -144,6 +164,8 @@ fun PantallaVentas(
         alDescartar = { mostrarModalCobro = false }
     )
 
+    val contexto = androidx.compose.ui.platform.LocalContext.current
+
     // Modal de Venta Exitosa
     DialogoVentaExitosa(
         venta = ultimaVenta,
@@ -152,6 +174,12 @@ fun PantallaVentas(
             viewModel.imprimirTicketUltimaVenta { resultado ->
                 // Feedback de impresión
             }
+        },
+        alCompartirPdf = {
+            viewModel.compartirFacturaPdf(contexto)
+        },
+        alVerPdf = {
+            viewModel.verFacturaPdf(contexto)
         }
     )
 
@@ -171,6 +199,10 @@ fun PantallaVentas(
                 alDecrementar = { viewModel.decrementarCantidad(it) },
                 alEliminar = { viewModel.eliminarDelCarrito(it) },
                 alVaciar = { viewModel.vaciarCarrito() },
+                alEspecificarCantidad = { prod, cant ->
+                    cantidadInicialDialogo = cant
+                    productoParaCantidad = prod
+                },
                 alProcederCobro = {
                     mostrarModalCarrito = false
                     mostrarModalCobro = true
@@ -184,7 +216,7 @@ fun PantallaVentas(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Caja y Ventas",
+                        text = "Facturación",
                         fontWeight = FontWeight.Bold,
                         color = Blanco
                     )
@@ -347,8 +379,12 @@ fun PantallaVentas(
                         val itemEnCarrito = carrito.find { it.producto.id == producto.id }
                         TarjetaProductoVenta(
                             producto = producto,
-                            cantidadEnCarrito = itemEnCarrito?.cantidad?.toInt() ?: 0,
-                            alAgregar = { viewModel.agregarAlCarrito(producto) }
+                            cantidadEnCarrito = itemEnCarrito?.cantidad ?: 0.0,
+                            alAgregar = { viewModel.agregarAlCarrito(producto) },
+                            alEspecificarCantidad = {
+                                cantidadInicialDialogo = itemEnCarrito?.cantidad ?: 1.0
+                                productoParaCantidad = producto
+                            }
                         )
                     }
                     item {
@@ -361,18 +397,27 @@ fun PantallaVentas(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TarjetaProductoVenta(
     producto: ProductoEntidad,
-    cantidadEnCarrito: Int,
-    alAgregar: () -> Unit
+    cantidadEnCarrito: Double,
+    alAgregar: () -> Unit,
+    alEspecificarCantidad: () -> Unit
 ) {
+    val estaAgotado = producto.controlaStock && producto.stock <= 0
+
     Card(
-        onClick = alAgregar,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .combinedClickable(
+                onClick = { if (!estaAgotado) alAgregar() },
+                onLongClick = { if (!estaAgotado) alEspecificarCantidad() }
+            )
     ) {
         Row(
             modifier = Modifier
@@ -404,7 +449,7 @@ fun TarjetaProductoVenta(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "$${String.format("%.2f", producto.precioVenta)}",
+                        text = "$${String.format(java.util.Locale.US, "%.2f", producto.precioVenta)}",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = AzulPrimario
@@ -440,51 +485,55 @@ fun TarjetaProductoVenta(
                 }
             }
 
-                // Indicador de cuántos hay en carrito o botón de agregar
-                val estaAgotado = producto.controlaStock && producto.stock <= 0
-                if (cantidadEnCarrito > 0) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(AzulPrimario, shape = CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "$cantidadEnCarrito",
-                            color = Blanco,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                } else if (estaAgotado) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(RojoError.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Block,
-                            contentDescription = "Agotado",
-                            tint = RojoError,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(AzulPrimarioClaro.copy(alpha = 0.35f), shape = RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = "Agregar",
-                            tint = AzulPrimario,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+            // Indicador de cuántos hay en carrito o botones de acción
+            if (estaAgotado) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(RojoError.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Block,
+                        contentDescription = "Agotado",
+                        tint = RojoError,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
+            } else if (cantidadEnCarrito > 0) {
+                val textoCant = if (cantidadEnCarrito % 1.0 == 0.0) "${cantidadEnCarrito.toInt()}" else "$cantidadEnCarrito"
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(AzulPrimario)
+                        .clickable(onClick = alEspecificarCantidad),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = textoCant,
+                        color = Blanco,
+                        fontSize = if (textoCant.length > 3) 11.sp else 14.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AzulPrimarioClaro.copy(alpha = 0.35f))
+                        .clickable(onClick = alAgregar),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Agregar 1",
+                        tint = AzulPrimario,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -602,6 +651,7 @@ fun HojaDetalleCarrito(
     alDecrementar: (Long) -> Unit,
     alEliminar: (Long) -> Unit,
     alVaciar: () -> Unit,
+    alEspecificarCantidad: (ProductoEntidad, Double) -> Unit,
     alProcederCobro: () -> Unit
 ) {
     Column(
@@ -654,7 +704,11 @@ fun HojaDetalleCarrito(
                             .padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { alEspecificarCantidad(item.producto, item.cantidad) }
+                        ) {
                             Text(
                                 text = item.producto.nombre,
                                 fontSize = 14.sp,
@@ -663,13 +717,13 @@ fun HojaDetalleCarrito(
                                 maxLines = 1
                             )
                             Text(
-                                text = "$${String.format("%.2f", item.precioUnitario)} c/u  |  Total: $${String.format("%.2f", item.total)}",
+                                text = "$${String.format(java.util.Locale.US, "%.2f", item.precioUnitario)} c/u  |  Total: $${String.format(java.util.Locale.US, "%.2f", item.total)}",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        // Controles de cantidad (- / +)
+                        // Controles de cantidad (- / [cant (editable)] / +)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -690,13 +744,35 @@ fun HojaDetalleCarrito(
                                 )
                             }
 
-                            Text(
-                                text = "${item.cantidad.toInt()}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
+                            // Botón/Caja de cantidad con indicador visual de edición
+                            val textoCant = if (item.cantidad % 1.0 == 0.0) "${item.cantidad.toInt()}" else "${item.cantidad}"
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(1.dp, AzulPrimario.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                    .clickable { alEspecificarCantidad(item.producto, item.cantidad) }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text(
+                                        text = textoCant,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = AzulPrimario
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Filled.Edit,
+                                        contentDescription = "Modificar cantidad",
+                                        tint = AzulPrimario.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(11.dp)
+                                    )
+                                }
+                            }
 
                             val limiteAlcanzado = item.producto.controlaStock && item.cantidad >= item.producto.stock
                             Box(

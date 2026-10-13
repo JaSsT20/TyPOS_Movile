@@ -16,9 +16,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -56,7 +59,9 @@ import kotlinx.coroutines.launch
 fun DialogoVentaExitosa(
     venta: VentaEntidad?,
     alCerrar: () -> Unit,
-    alImprimir: (VentaEntidad) -> Unit
+    alImprimir: (VentaEntidad) -> Unit,
+    alCompartirPdf: () -> Unit,
+    alVerPdf: () -> Unit
 ) {
     if (venta == null) return
 
@@ -137,6 +142,27 @@ fun DialogoVentaExitosa(
                     icono = Icons.Filled.Print,
                     variante = VarianteBoton.PRIMARIO
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BotonPos(
+                        texto = "WhatsApp / Compartir",
+                        alHacerClic = alCompartirPdf,
+                        icono = Icons.Filled.Share,
+                        variante = VarianteBoton.EXITO,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    BotonPos(
+                        texto = "Ver PDF",
+                        alHacerClic = alVerPdf,
+                        icono = Icons.Filled.PictureAsPdf,
+                        variante = VarianteBoton.SECUNDARIO,
+                        modifier = Modifier.width(115.dp)
+                    )
+                }
 
                 BotonPos(
                     texto = "Nueva Venta",

@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 data class FormularioCobroUiState(
     val metodoPago: String = "Efectivo", // "Efectivo", "Transferencia", "Cheque", "Mixto"
     val montoRecibido: String = "",
+    val devueltaPersonalizada: String? = null,
     val montoEfectivo: String = "",
     val montoTransferencia: String = "",
     val referenciaTransferencia: String = "",
@@ -162,6 +163,52 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
         return agregadoConExito
     }
 
+    fun agregarOActualizarCantidad(producto: ProductoEntidad, cantidad: Double): Boolean {
+        if (cantidad <= 0.0) {
+            eliminarDelCarrito(producto.id)
+            return true
+        }
+
+        if (producto.controlaStock && cantidad > producto.stock) {
+            _mensajeAlerta.value = "Stock insuficiente: Solo hay ${producto.stock.toInt()} unidad(es) de '${producto.nombre}'."
+            return false
+        }
+
+        _carrito.update { listaActual ->
+            val index = listaActual.indexOfFirst { it.producto.id == producto.id }
+            if (index != -1) {
+                val listaMutada = listaActual.toMutableList()
+                listaMutada[index] = listaMutada[index].copy(cantidad = cantidad)
+                listaMutada
+            } else {
+                listaActual + ItemCarrito(producto = producto, cantidad = cantidad)
+            }
+        }
+        return true
+    }
+
+    fun establecerCantidad(idProducto: Long, cantidad: Double): Boolean {
+        if (cantidad <= 0.0) {
+            eliminarDelCarrito(idProducto)
+            return true
+        }
+        var actualizado = true
+        _carrito.update { lista ->
+            lista.map { item ->
+                if (item.producto.id == idProducto) {
+                    if (item.producto.controlaStock && cantidad > item.producto.stock) {
+                        _mensajeAlerta.value = "Stock insuficiente: Solo hay ${item.producto.stock.toInt()} unidad(es) de '${item.producto.nombre}'."
+                        actualizado = false
+                        item
+                    } else {
+                        item.copy(cantidad = cantidad)
+                    }
+                } else item
+            }
+        }
+        return actualizado
+    }
+
     fun incrementarCantidad(idProducto: Long) {
         _carrito.update { lista ->
             lista.map { item ->
@@ -210,19 +257,23 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
 
     // Manejo de Estados de Cobro
     fun onMetodoPagoCambiado(metodo: String) {
-        _cobroState.update { it.copy(metodoPago = metodo, mensajeError = null) }
+        _cobroState.update { it.copy(metodoPago = metodo, devueltaPersonalizada = null, mensajeError = null) }
     }
 
     fun onMontoRecibidoCambiado(monto: String) {
-        _cobroState.update { it.copy(montoRecibido = monto, mensajeError = null) }
+        _cobroState.update { it.copy(montoRecibido = monto, devueltaPersonalizada = null, mensajeError = null) }
+    }
+
+    fun onDevueltaCambiada(devuelta: String?) {
+        _cobroState.update { it.copy(devueltaPersonalizada = devuelta) }
     }
 
     fun onMontoEfectivoCambiado(monto: String) {
-        _cobroState.update { it.copy(montoEfectivo = monto, mensajeError = null) }
+        _cobroState.update { it.copy(montoEfectivo = monto, devueltaPersonalizada = null, mensajeError = null) }
     }
 
     fun onMontoTransferenciaCambiado(monto: String) {
-        _cobroState.update { it.copy(montoTransferencia = monto, mensajeError = null) }
+        _cobroState.update { it.copy(montoTransferencia = monto, devueltaPersonalizada = null, mensajeError = null) }
     }
 
     fun onReferenciaTransferenciaCambiada(ref: String) {
@@ -230,7 +281,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun onMontoChequeCambiado(monto: String) {
-        _cobroState.update { it.copy(montoCheque = monto, mensajeError = null) }
+        _cobroState.update { it.copy(montoCheque = monto, devueltaPersonalizada = null, mensajeError = null) }
     }
 
     fun onNumeroChequeCambiado(num: String) {
@@ -272,7 +323,9 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                     return
                 }
                 montoEfectivo = if (montoRecibidoDouble >= totalVenta) totalVenta else montoRecibidoDouble
-                montoDevueltoDouble = (montoRecibidoDouble - totalVenta).coerceAtLeast(0.0)
+                val devueltaCalculada = (montoRecibidoDouble - totalVenta).coerceAtLeast(0.0)
+                val devueltaManual = estadoCobro.devueltaPersonalizada?.toDoubleOrNull()
+                montoDevueltoDouble = (devueltaManual ?: devueltaCalculada).coerceAtLeast(0.0)
             }
             "Transferencia" -> {
                 montoTransferencia = totalVenta
@@ -299,7 +352,9 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                     return
                 }
                 montoRecibidoDouble = sumaPagos
-                montoDevueltoDouble = (sumaPagos - totalVenta).coerceAtLeast(0.0)
+                val devueltaCalculada = (sumaPagos - totalVenta).coerceAtLeast(0.0)
+                val devueltaManual = estadoCobro.devueltaPersonalizada?.toDoubleOrNull()
+                montoDevueltoDouble = (devueltaManual ?: devueltaCalculada).coerceAtLeast(0.0)
             }
         }
 
@@ -369,7 +424,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                         tasaItbis = item.tasaItbis,
                         montoItbis = item.montoItbis,
                         total = item.total,
-                        tipo = "Producto"
+                        tipo = item.producto.tipoItem
                     )
                 }
 
@@ -414,6 +469,36 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                 detalles = detalles
             )
             alTerminar(resultado)
+        }
+    }
+
+    fun compartirFacturaPdf(contexto: android.content.Context) {
+        val venta = _ultimaVentaRealizada.value ?: return
+        val detalles = _detallesUltimaVenta.value
+        viewModelScope.launch {
+            val config = configuracionRepositorio.obtenerConfiguracionDirecta()
+            val archivo = com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.generarPdfFactura(
+                contexto = contexto,
+                venta = venta,
+                detalles = detalles,
+                configuracion = config
+            )
+            com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.compartirPdf(contexto, archivo, venta)
+        }
+    }
+
+    fun verFacturaPdf(contexto: android.content.Context) {
+        val venta = _ultimaVentaRealizada.value ?: return
+        val detalles = _detallesUltimaVenta.value
+        viewModelScope.launch {
+            val config = configuracionRepositorio.obtenerConfiguracionDirecta()
+            val archivo = com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.generarPdfFactura(
+                contexto = contexto,
+                venta = venta,
+                detalles = detalles,
+                configuracion = config
+            )
+            com.typdevstudio.typos_movil.utilidades.factura.GeneradorPdfFactura.abrirPdf(contexto, archivo)
         }
     }
 

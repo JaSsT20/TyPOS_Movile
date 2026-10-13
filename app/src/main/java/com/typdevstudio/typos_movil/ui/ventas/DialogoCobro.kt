@@ -9,21 +9,33 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
@@ -49,10 +61,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import java.util.Locale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -198,25 +213,39 @@ fun DialogoCobro(
         )
     }
 
+    val estadoScroll = rememberScrollState()
+    val ambitoCorrutina = rememberCoroutineScope()
+
     Dialog(
         onDismissRequest = alDescartar,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
-        Card(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
                 .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                        .verticalScroll(estadoScroll),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                 // Cabecera del Diálogo
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -346,24 +375,19 @@ fun DialogoCobro(
                             }
                         }
 
-                        // Indicador de Devuelta / Cambio o Aviso de Monto Menor
+                        // Indicador de Devuelta / Cambio Editable o Aviso de Monto Menor
                         if (montoRecibidoDouble >= total) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(VerdeExito.copy(alpha = 0.12f))
-                                    .padding(12.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Cambio / Devuelta:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VerdeExito)
-                                    Text("$${String.format("%.2f", cambio)}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = VerdeExito)
+                            TarjetaDevueltaEditable(
+                                devueltaCalculada = cambio,
+                                devueltaPersonalizada = cobroState.devueltaPersonalizada,
+                                alCambiarDevuelta = { viewModel.onDevueltaCambiada(it) },
+                                alEnfocar = {
+                                    ambitoCorrutina.launch {
+                                        delay(250)
+                                        estadoScroll.animateScrollTo(estadoScroll.maxValue)
+                                    }
                                 }
-                            }
+                            )
                         } else if (montoRecibidoDouble > 0.0) {
                             Box(
                                 modifier = Modifier
@@ -478,6 +502,21 @@ fun DialogoCobro(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+
+                        val cambioMixto = (suma - total).coerceAtLeast(0.0)
+                        if (suma >= total && (cambioMixto > 0.0 || cobroState.devueltaPersonalizada != null)) {
+                            TarjetaDevueltaEditable(
+                                devueltaCalculada = cambioMixto,
+                                devueltaPersonalizada = cobroState.devueltaPersonalizada,
+                                alCambiarDevuelta = { viewModel.onDevueltaCambiada(it) },
+                                alEnfocar = {
+                                    ambitoCorrutina.launch {
+                                        delay(250)
+                                        estadoScroll.animateScrollTo(estadoScroll.maxValue)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -547,6 +586,129 @@ fun DialogoCobro(
                     variante = VarianteBoton.EXITO,
                     icono = Icons.Filled.Check
                 )
+            }
+        }
+        }
+    }
+}
+
+@Composable
+private fun TarjetaDevueltaEditable(
+    devueltaCalculada: Double,
+    devueltaPersonalizada: String?,
+    alCambiarDevuelta: (String?) -> Unit,
+    alEnfocar: (() -> Unit)? = null
+) {
+    val textoCalculado = String.format(Locale.US, "%.2f", devueltaCalculada)
+    val textoMostrado = devueltaPersonalizada ?: textoCalculado
+    val estaPersonalizada = devueltaPersonalizada != null && devueltaPersonalizada != textoCalculado
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(VerdeExito.copy(alpha = 0.12f))
+            .border(1.dp, VerdeExito.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Cambio / Devuelta:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = VerdeExito
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Calculado a devolver: $$textoCalculado",
+                    fontSize = 11.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (estaPersonalizada) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { alCambiarDevuelta(null) }
+                    ) {
+                        Text(
+                            text = "Editado • ",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AzulPrimario
+                        )
+                        Text(
+                            text = "Restablecer",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AzulPrimario,
+                            style = TextStyle(textDecoration = TextDecoration.Underline)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Input sutil/disimulado pero editable al toque
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(
+                    1.dp,
+                    if (estaPersonalizada) AzulPrimario else VerdeExito.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier
+                    .widthIn(min = 105.dp, max = 140.dp)
+                    .clickable { alEnfocar?.invoke() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = "$",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (estaPersonalizada) AzulPrimario else VerdeExito
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    BasicTextField(
+                        value = textoMostrado,
+                        onValueChange = { nuevo ->
+                            if (nuevo.isEmpty() || nuevo.matches(Regex("^\\d*(\\.\\d{0,2})?$"))) {
+                                alCambiarDevuelta(nuevo)
+                            }
+                        },
+                        textStyle = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (estaPersonalizada) AzulPrimario else VerdeExito,
+                            textAlign = TextAlign.End
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    alEnfocar?.invoke()
+                                }
+                            }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Editar devuelta",
+                        tint = if (estaPersonalizada) AzulPrimario else VerdeExito.copy(alpha = 0.6f),
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
             }
         }
     }
