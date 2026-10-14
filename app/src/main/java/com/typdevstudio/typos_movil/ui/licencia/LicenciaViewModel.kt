@@ -33,7 +33,7 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
 
     val situacion: StateFlow<SituacionLicencia> = LicenciaGuard.situacion
 
-    private val _uiState = MutableStateFlow(LicenciaUiState(nombreDispositivo = nombrePorDefecto()))
+    private val _uiState = MutableStateFlow(LicenciaUiState(nombreDispositivo = nombreTelefonoPorDefecto()))
     val uiState: StateFlow<LicenciaUiState> = _uiState.asStateFlow()
 
     init {
@@ -113,13 +113,14 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
 
     fun limpiarMensaje() = _uiState.update { it.copy(mensaje = null) }
 
-    private fun nombrePorDefecto(): String {
-        val fabricante = Build.MANUFACTURER.orEmpty().replaceFirstChar { it.uppercase() }
-        val modelo = Build.MODEL.orEmpty()
-        return (if (modelo.startsWith(fabricante, ignoreCase = true)) modelo else "$fabricante $modelo").trim().take(100)
-    }
-
     companion object {
+        /** Fabricante y modelo (ej. "Samsung SM-A155M"), como nombre sugerido para el teléfono en la licencia. */
+        fun nombreTelefonoPorDefecto(): String {
+            val fabricante = Build.MANUFACTURER.orEmpty().replaceFirstChar { it.uppercase() }
+            val modelo = Build.MODEL.orEmpty()
+            return (if (modelo.startsWith(fabricante, ignoreCase = true)) modelo else "$fabricante $modelo").trim().take(100)
+        }
+
         /** `6f3m drbx-anru` → `6F3M-DRBX-ANRU`, o `null` si no son exactamente 12 letras o números. */
         fun claveNormalizada(texto: String): String? {
             val alfanumerica = texto.filter { it.isLetterOrDigit() && it.code < 128 }.uppercase()

@@ -62,6 +62,7 @@ import com.typdevstudio.typos_movil.ui.theme.GrisSecundario
 import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
+import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 
 @Composable
 fun PantallaLogin(
@@ -69,6 +70,12 @@ fun PantallaLogin(
     viewModel: LoginViewModel = viewModel()
 ) {
     val estado by viewModel.uiState.collectAsState()
+    val sinUsuarios by viewModel.sinUsuarios.collectAsState()
+    val bienvenida by viewModel.bienvenida.collectAsState()
+    val situacionLicencia by LicenciaGuard.situacion.collectAsState()
+    // Códigos de invitación: solo durante la transición. Con licencia en la nube los usuarios se crean en
+    // Configuración > Usuarios y llegan solos a cada teléfono.
+    val permiteCodigoInvitacion = LicenciaGuard.USAR_LICENCIA_ANTIGUA && situacionLicencia.clave == null
     val focusManager = LocalFocusManager.current
     var mostrarDialogoActivacion by remember { mutableStateOf(false) }
 
@@ -124,6 +131,12 @@ fun PantallaLogin(
             )
 
             Spacer(modifier = Modifier.height(28.dp))
+
+            // Primer uso: sin usuarios no hay con quién iniciar sesión.
+            if (sinUsuarios == true) {
+                TarjetaBienvenidaSinUsuarios(estado = bienvenida, viewModel = viewModel)
+                return@Column
+            }
 
             // Tarjeta de formulario de acceso
             Card(
@@ -273,7 +286,7 @@ fun PantallaLogin(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Botón para Activar Usuario con Código de Invitación
-            TextButton(
+            if (permiteCodigoInvitacion) TextButton(
                 onClick = { mostrarDialogoActivacion = true }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -296,7 +309,7 @@ fun PantallaLogin(
     }
 
     // Modal de Activación de Usuario
-    if (mostrarDialogoActivacion) {
+    if (mostrarDialogoActivacion && permiteCodigoInvitacion) {
         DialogoActivarUsuario(
             usuarioRepositorio = viewModel.repositorio,
             alCerrar = { mostrarDialogoActivacion = false },

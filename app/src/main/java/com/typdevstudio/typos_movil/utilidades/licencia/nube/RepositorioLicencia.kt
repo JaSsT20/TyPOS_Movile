@@ -22,6 +22,20 @@ sealed interface ResultadoLicencia {
     data object SinLicencia : ResultadoLicencia
 }
 
+/** Resultado de una operación de usuarios contra la API. */
+sealed interface ResultadoUsuarios {
+    /** La lista completa y vigente de usuarios de la licencia. */
+    data class Exito(val lista: ListaUsuariosRemota) : ResultadoUsuarios
+
+    /** La API rechazó la operación (límite del plan, usuario repetido...). [mensaje] es para el usuario. */
+    data class Rechazada(val codigo: String, val mensaje: String) : ResultadoUsuarios
+
+    data class SinConexion(val mensaje: String) : ResultadoUsuarios
+
+    /** El teléfono no tiene licencia nueva: los usuarios todavía se manejan solo en el teléfono. */
+    data object SinLicencia : ResultadoUsuarios
+}
+
 /** Bitácora de la licencia. Nunca recibe claves completas ni tokens. */
 interface RegistroLicencia {
     fun info(mensaje: String)
@@ -68,7 +82,8 @@ class RepositorioLicencia(
                 ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("activación", respuesta)
-            RespuestaApi.Ok -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            // Respuestas que no corresponden a este endpoint.
+            RespuestaApi.Ok, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -89,7 +104,8 @@ class RepositorioLicencia(
                 ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("validación", respuesta)
-            RespuestaApi.Ok -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            // Respuestas que no corresponden a este endpoint.
+            RespuestaApi.Ok, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -106,7 +122,7 @@ class RepositorioLicencia(
                 else -> ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("desactivación", respuesta)
-            is RespuestaApi.Token -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            is RespuestaApi.Token, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -124,6 +140,54 @@ class RepositorioLicencia(
         )
         almacen.registrarFechaVista(ahora)
         return estado
+    }
+
+    // ------------------------------------------------------------------
+    // Usuarios de la licencia (comparten la regla de oro: red caída no castiga)
+    // ------------------------------------------------------------------
+
+    @Synchronized
+    fun listarUsuarios(): ResultadoUsuarios = operarUsuarios("listar usuarios") { clave, hash ->
+        cliente.listarUsuarios(clave, hash)
+    }
+
+    @Synchronized
+    fun crearUsuario(usuario: UsuarioRemoto): ResultadoUsuarios = operarUsuarios("crear usuario") { clave, hash ->
+        cliente.crearUsuario(clave, hash, usuario)
+    }
+
+    @Synchronized
+    fun actualizarUsuario(
+        nombreUsuario: String,
+        nombreCompleto: String? = null,
+        rol: String? = null,
+        hashClave: String? = null,
+        activo: Boolean? = null,
+    ): ResultadoUsuarios = operarUsuarios("actualizar usuario") { clave, hash ->
+        cliente.actualizarUsuario(clave, hash, nombreUsuario, nombreCompleto, rol, hashClave, activo)
+    }
+
+    @Synchronized
+    fun importarUsuarios(usuarios: List<UsuarioRemoto>): ResultadoUsuarios = operarUsuarios("importar usuarios") { clave, hash ->
+        cliente.importarUsuarios(clave, hash, usuarios)
+    }
+
+    private fun operarUsuarios(operacion: String, llamada: (String, String) -> RespuestaApi): ResultadoUsuarios {
+        val clave = almacen.leer().clave ?: return ResultadoUsuarios.SinLicencia
+        return when (val respuesta = llamada(clave, deviceHash())) {
+            is RespuestaApi.Usuarios -> ResultadoUsuarios.Exito(respuesta.lista)
+            is RespuestaApi.ErrorNegocio -> {
+                // Un bloqueo comunicado aquí vale igual que en /validar (suspendida, revocado...).
+                MotivoRestriccion.desdeCodigoServidor(respuesta.codigo)?.let { almacen.guardarBloqueoServidor(it, respuesta.mensaje) }
+                registro.advertencia("$operacion rechazado (${enmascararClave(clave)}): ${respuesta.codigo}")
+                ResultadoUsuarios.Rechazada(respuesta.codigo, respuesta.mensaje)
+            }
+            is RespuestaApi.FallaRed -> {
+                registro.advertencia("$operacion sin conexión: ${respuesta.detalle}")
+                ResultadoUsuarios.SinConexion(MENSAJE_SIN_CONEXION)
+            }
+            else -> ResultadoUsuarios.SinConexion(MENSAJE_SIN_CONEXION)
+        }
     }
 
     /** Lo guardado (clave, última validación...), para mostrar en la pantalla de licencia. */

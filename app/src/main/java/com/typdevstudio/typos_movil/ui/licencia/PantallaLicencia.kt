@@ -251,7 +251,7 @@ private fun TarjetaEstado(situacion: SituacionLicencia) {
 }
 
 @Composable
-private fun MensajeResultado(mensaje: String, esError: Boolean, alCerrar: () -> Unit) {
+internal fun MensajeResultado(mensaje: String, esError: Boolean, alCerrar: () -> Unit) {
     val color = if (esError) RojoError else VerdeExito
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -269,7 +269,7 @@ private fun MensajeResultado(mensaje: String, esError: Boolean, alCerrar: () -> 
 }
 
 @Composable
-private fun Tarjeta(contenido: @Composable () -> Unit) {
+internal fun Tarjeta(contenido: @Composable () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -283,7 +283,7 @@ private fun Tarjeta(contenido: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Titulo(texto: String) {
+internal fun Titulo(texto: String) {
     Text(texto, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AzulPrimario)
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.typdevstudio.typos_movil.datos.repositorio.ResultadoRegistroUsuario
 import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.CampoTextoPos
@@ -139,7 +140,7 @@ fun DialogoActivarUsuario(
                 mensajeError = motivoLicencia
                 return@launch
             }
-            val exito = usuarioRepositorio.registrarNuevoUsuario(
+            val resultado = usuarioRepositorio.registrarNuevoUsuario(
                 nombreUsuario = token.nombreUsuario,
                 nombreCompleto = token.nombreCompleto,
                 clave = clave,
@@ -147,11 +148,12 @@ fun DialogoActivarUsuario(
             )
             estaGuardando = false
 
-            if (exito) {
-                mensajeExito = "¡Usuario '${token.nombreUsuario}' creado exitosamente!"
-                alUsuarioRegistrado(token.nombreUsuario)
-            } else {
-                mensajeError = "No se pudo registrar el usuario. Es posible que ya exista."
+            when (resultado) {
+                is ResultadoRegistroUsuario.Exito -> {
+                    mensajeExito = "¡Usuario '${token.nombreUsuario}' creado exitosamente!"
+                    alUsuarioRegistrado(token.nombreUsuario)
+                }
+                is ResultadoRegistroUsuario.Error -> mensajeError = resultado.mensaje
             }
         }
     }

@@ -26,6 +26,13 @@ interface UsuarioDao {
     @Query("SELECT COUNT(*) FROM usuarios")
     suspend fun contarUsuarios(): Int
 
+    /** Todos, activos e inactivos (para sincronizar con la licencia). */
+    @Query("SELECT * FROM usuarios ORDER BY nombre_completo ASC")
+    suspend fun obtenerTodos(): List<UsuarioEntidad>
+
+    @Query("SELECT * FROM usuarios ORDER BY nombre_completo ASC")
+    fun observarTodos(): Flow<List<UsuarioEntidad>>
+
     @Query("SELECT COUNT(*) FROM usuarios WHERE esta_activo = 1")
     suspend fun contarUsuariosActivos(): Int
 

@@ -1,5 +1,6 @@
 package com.typdevstudio.typos_movil.utilidades.licencia.nube
 
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -69,11 +70,62 @@ sealed interface RespuestaApi {
     /** `/desactivar` exitoso. */
     data object Ok : RespuestaApi
 
+    /** Operación de usuarios exitosa: la lista completa y vigente de la licencia. */
+    data class Usuarios(val lista: ListaUsuariosRemota) : RespuestaApi
+
     /** Error de negocio con el formato único de la API (`ok: false`). */
     data class ErrorNegocio(val codigo: String, val mensaje: String, val estadoHttp: Int) : RespuestaApi
 
     /** Sin red, timeout, 5xx, 429 o respuesta que no es de la API (por ejemplo un portal cautivo). Nunca castiga. */
     data class FallaRed(val detalle: String) : RespuestaApi
+}
+
+/** Qué espera cada endpoint en una respuesta exitosa. */
+enum class TipoRespuesta { TOKEN, OK, USUARIOS }
+
+/** Usuario de la licencia tal como lo guarda la API (la contraseña viene con hash). */
+data class UsuarioRemoto(
+    val nombreUsuario: String,
+    val nombreCompleto: String,
+    val rol: String,
+    val hashClave: String,
+    val activo: Boolean,
+)
+
+/** Respuesta de los endpoints `/usuarios/...`: todos los usuarios de la licencia y el límite del plan. */
+data class ListaUsuariosRemota(
+    val maxUsuarios: Int,
+    val usuariosActivos: Int,
+    val usuarios: List<UsuarioRemoto>,
+    /** Al importar: nombres que no entraron por el límite del plan. */
+    val rechazados: List<String> = emptyList(),
+) {
+    companion object {
+        /** @throws IllegalArgumentException si el JSON no tiene la forma esperada. */
+        fun desdeJson(json: JSONObject): ListaUsuariosRemota {
+            try {
+                val usuarios = json.getJSONArray("usuarios")
+                val rechazados = json.optJSONArray("rechazados")
+                return ListaUsuariosRemota(
+                    maxUsuarios = json.getInt("max_usuarios"),
+                    usuariosActivos = json.getInt("usuarios_activos"),
+                    usuarios = (0 until usuarios.length()).map { i ->
+                        val u = usuarios.getJSONObject(i)
+                        UsuarioRemoto(
+                            nombreUsuario = u.getString("nombre_usuario"),
+                            nombreCompleto = u.getString("nombre_completo"),
+                            rol = u.getString("rol"),
+                            hashClave = u.getString("hash_clave"),
+                            activo = u.getBoolean("activo"),
+                        )
+                    },
+                    rechazados = if (rechazados == null) emptyList() else (0 until rechazados.length()).map { rechazados.getString(it) },
+                )
+            } catch (e: JSONException) {
+                throw IllegalArgumentException("Lista de usuarios no reconocida.", e)
+            }
+        }
+    }
 }
 
 /**
@@ -94,18 +146,68 @@ class ClienteApiLicencias(
                 .put("device_hash", deviceHash)
                 .put("nombre_dispositivo", nombreDispositivo ?: JSONObject.NULL)
                 .put("version_app", versionApp),
-            esperaToken = true,
+            tipo = TipoRespuesta.TOKEN,
         )
 
     fun validar(clave: String, deviceHash: String, versionApp: String): RespuestaApi =
         post(
             "/validar",
             JSONObject().put("clave", clave).put("device_hash", deviceHash).put("version_app", versionApp),
-            esperaToken = true,
+            tipo = TipoRespuesta.TOKEN,
         )
 
     fun desactivar(clave: String, deviceHash: String): RespuestaApi =
-        post("/desactivar", JSONObject().put("clave", clave).put("device_hash", deviceHash), esperaToken = false)
+        post("/desactivar", JSONObject().put("clave", clave).put("device_hash", deviceHash), tipo = TipoRespuesta.OK)
+
+    fun listarUsuarios(clave: String, deviceHash: String): RespuestaApi =
+        post("/usuarios/listar", identificacion(clave, deviceHash), TipoRespuesta.USUARIOS)
+
+    fun crearUsuario(clave: String, deviceHash: String, usuario: UsuarioRemoto): RespuestaApi =
+        post(
+            "/usuarios/crear",
+            identificacion(clave, deviceHash)
+                .put("nombre_usuario", usuario.nombreUsuario)
+                .put("nombre_completo", usuario.nombreCompleto)
+                .put("rol", usuario.rol)
+                .put("hash_clave", usuario.hashClave),
+            TipoRespuesta.USUARIOS,
+        )
+
+    /** Solo se envían (y cambian) los campos no nulos. */
+    fun actualizarUsuario(
+        clave: String,
+        deviceHash: String,
+        nombreUsuario: String,
+        nombreCompleto: String? = null,
+        rol: String? = null,
+        hashClave: String? = null,
+        activo: Boolean? = null,
+    ): RespuestaApi {
+        val cuerpo = identificacion(clave, deviceHash).put("nombre_usuario", nombreUsuario)
+        nombreCompleto?.let { cuerpo.put("nombre_completo", it) }
+        rol?.let { cuerpo.put("rol", it) }
+        hashClave?.let { cuerpo.put("hash_clave", it) }
+        activo?.let { cuerpo.put("activo", it) }
+        return post("/usuarios/actualizar", cuerpo, TipoRespuesta.USUARIOS)
+    }
+
+    fun importarUsuarios(clave: String, deviceHash: String, usuarios: List<UsuarioRemoto>): RespuestaApi {
+        val lista = JSONArray()
+        usuarios.forEach { u ->
+            lista.put(
+                JSONObject()
+                    .put("nombre_usuario", u.nombreUsuario)
+                    .put("nombre_completo", u.nombreCompleto)
+                    .put("rol", u.rol)
+                    .put("hash_clave", u.hashClave)
+                    .put("activo", u.activo)
+            )
+        }
+        return post("/usuarios/importar", identificacion(clave, deviceHash).put("usuarios", lista), TipoRespuesta.USUARIOS)
+    }
+
+    private fun identificacion(clave: String, deviceHash: String) =
+        JSONObject().put("clave", clave).put("device_hash", deviceHash)
 
     /** `true` si la API responde y tiene conexión con su base de datos. Solo para diagnóstico. */
     fun salud(): Boolean = try {
@@ -117,16 +219,16 @@ class ClienteApiLicencias(
         false
     }
 
-    private fun post(ruta: String, cuerpo: JSONObject, esperaToken: Boolean): RespuestaApi {
+    private fun post(ruta: String, cuerpo: JSONObject, tipo: TipoRespuesta): RespuestaApi {
         val respuesta = try {
             transporte.enviar("POST", urlBase + ruta, cuerpo.toString())
         } catch (e: IOException) {
             return RespuestaApi.FallaRed(e.javaClass.simpleName + (e.message?.let { ": $it" } ?: ""))
         }
-        return interpretar(respuesta, esperaToken)
+        return interpretar(respuesta, tipo)
     }
 
-    internal fun interpretar(respuesta: RespuestaHttp, esperaToken: Boolean): RespuestaApi {
+    internal fun interpretar(respuesta: RespuestaHttp, tipo: TipoRespuesta): RespuestaApi {
         val codigo = respuesta.codigo
         if (codigo == 429) return RespuestaApi.FallaRed("Demasiadas solicitudes (HTTP 429).")
         if (codigo >= 500) return RespuestaApi.FallaRed("Falla del servidor (HTTP $codigo).")
@@ -138,9 +240,18 @@ class ClienteApiLicencias(
         }
 
         if (codigo == 200 && json.optBoolean("ok", false)) {
-            if (!esperaToken) return RespuestaApi.Ok
-            val token = json.opt("token") as? String
-            return if (token.isNullOrEmpty()) RespuestaApi.FallaRed("Respuesta sin token.") else RespuestaApi.Token(token)
+            return when (tipo) {
+                TipoRespuesta.OK -> RespuestaApi.Ok
+                TipoRespuesta.TOKEN -> {
+                    val token = json.opt("token") as? String
+                    if (token.isNullOrEmpty()) RespuestaApi.FallaRed("Respuesta sin token.") else RespuestaApi.Token(token)
+                }
+                TipoRespuesta.USUARIOS -> try {
+                    RespuestaApi.Usuarios(ListaUsuariosRemota.desdeJson(json))
+                } catch (e: IllegalArgumentException) {
+                    RespuestaApi.FallaRed("Lista de usuarios no reconocida.")
+                }
+            }
         }
 
         val codigoError = json.opt("codigo") as? String

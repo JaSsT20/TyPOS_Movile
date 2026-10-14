@@ -216,10 +216,12 @@ object LicenciaGuard {
         if (::repositorio.isInitialized) return
         aplicacion = contexto.applicationContext
         repositorio = RepositorioLicencia.crear(aplicacion)
+        val baseDatos = AppBaseDatos.obtenerBaseDatos(aplicacion)
         repositorioAntiguo = LicenciaRepositorio(
-            AppBaseDatos.obtenerBaseDatos(aplicacion).licenciaDao(),
+            baseDatos.licenciaDao(),
             IdDispositivo.obtenerSerialDispositivo(aplicacion),
         )
+        GestorUsuarios.inicializar(repositorio, baseDatos.usuarioDao())
         alcance.launch {
             actualizar()
             validarSiHaceFalta()
@@ -301,9 +303,16 @@ object LicenciaGuard {
     }
 
     suspend fun activar(clave: String, nombreDispositivo: String?): ResultadoLicencia =
-        operar { repositorio.activar(clave, nombreDispositivo) }
+        operar { repositorio.activar(clave, nombreDispositivo) }.also { sincronizarUsuariosSiValida(it) }
 
-    suspend fun validarAhora(): ResultadoLicencia = operar { repositorio.validar() }
+    suspend fun validarAhora(): ResultadoLicencia = operar { repositorio.validar() }.also { sincronizarUsuariosSiValida(it) }
+
+    /** Tras activar o validar con éxito, el teléfono se pone al día con los usuarios de la licencia. */
+    private suspend fun sincronizarUsuariosSiValida(resultado: ResultadoLicencia) {
+        if (resultado !is ResultadoLicencia.Exito) return
+        GestorUsuarios.sincronizar()
+        actualizar() // por si la API comunicó un bloqueo durante la sincronización
+    }
 
     suspend fun desactivar(): ResultadoLicencia = operar { repositorio.desactivar() }
 

@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LightMode
@@ -111,6 +112,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.typdevstudio.typos_movil.BuildConfig
 import com.typdevstudio.typos_movil.ui.licencia.TextosLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.GestorUsuarios
 import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import com.typdevstudio.typos_movil.utilidades.licencia.ModulosLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.EstadoLicencia
@@ -149,7 +151,8 @@ fun PantallaConfiguracion(
     viewModel: ConfiguracionViewModel,
     alVolver: () -> Unit,
     alNavegarAProductos: () -> Unit = {},
-    alNavegarALicencia: () -> Unit = {}
+    alNavegarALicencia: () -> Unit = {},
+    alNavegarAUsuarios: () -> Unit = {}
 ) {
     val estado by viewModel.uiState.collectAsState()
     val contexto = LocalContext.current
@@ -262,7 +265,8 @@ fun PantallaConfiguracion(
                                         seccionActual = destino
                                     }
                                 },
-                                alNavegarALicencia = alNavegarALicencia
+                                alNavegarALicencia = alNavegarALicencia,
+                                alNavegarAUsuarios = alNavegarAUsuarios
                             )
                         }
                         SeccionConfiguracion.APARIENCIA -> {
@@ -389,9 +393,11 @@ private fun BannerAlerta(
 private fun MenuPrincipalConfiguracion(
     estado: ConfiguracionUiState,
     alSeleccionarSeccion: (SeccionConfiguracion) -> Unit,
-    alNavegarALicencia: () -> Unit
+    alNavegarALicencia: () -> Unit,
+    alNavegarAUsuarios: () -> Unit
 ) {
     val situacionLicencia by LicenciaGuard.situacion.collectAsState()
+    val resumenUsuarios by GestorUsuarios.resumen.collectAsState()
 
     Column(
         modifier = Modifier
@@ -519,6 +525,16 @@ private fun MenuPrincipalConfiguracion(
                     titulo = "Licencia",
                     subtitulo = subLicencia,
                     alHacerClic = alNavegarALicencia,
+                    mostrarDivisor = true
+                )
+
+                ItemMenuAjustes(
+                    icono = Icons.Filled.Group,
+                    colorIcono = Color(0xFFFB8C00), // Naranja
+                    titulo = "Usuarios",
+                    subtitulo = resumenUsuarios?.let { "${it.usuariosActivos} de ${it.maxUsuarios} usuarios activos • Crear y administrar" }
+                        ?: "Crear y administrar usuarios",
+                    alHacerClic = alNavegarAUsuarios,
                     mostrarDivisor = true
                 )
 

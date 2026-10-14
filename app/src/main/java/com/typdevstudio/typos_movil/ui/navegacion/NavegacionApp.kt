@@ -45,6 +45,8 @@ import com.typdevstudio.typos_movil.ui.productos.PantallaFormularioProducto
 import com.typdevstudio.typos_movil.ui.productos.PantallaProductos
 import com.typdevstudio.typos_movil.ui.productos.ProductoViewModel
 import com.typdevstudio.typos_movil.ui.ventas.PantallaVentas
+import com.typdevstudio.typos_movil.ui.usuarios.PantallaUsuarios
+import com.typdevstudio.typos_movil.ui.usuarios.UsuariosViewModel
 import com.typdevstudio.typos_movil.ui.ventas.VentasViewModel
 import com.typdevstudio.typos_movil.utilidades.actualizador.ActualizadorApp
 import com.typdevstudio.typos_movil.utilidades.actualizador.InfoActualizacion
@@ -61,6 +63,7 @@ sealed class Ruta(val ruta: String) {
     data object Historial : Ruta("historial")
     data object Configuracion : Ruta("configuracion")
     data object Licencia : Ruta("licencia")
+    data object Usuarios : Ruta("usuarios")
 }
 
 @Composable
@@ -281,6 +284,19 @@ fun NavegacionApp() {
                 alNavegarALicencia = {
                     // Configuración ya exige administrador para entrar.
                     controladorNavegacion.navigate(Ruta.Licencia.ruta) { launchSingleTop = true }
+                },
+                alNavegarAUsuarios = {
+                    controladorNavegacion.navigate(Ruta.Usuarios.ruta) { launchSingleTop = true }
+                }
+            )
+        }
+
+        composable(Ruta.Usuarios.ruta) {
+            val usuariosViewModel: UsuariosViewModel = viewModel()
+            PantallaUsuarios(
+                viewModel = usuariosViewModel,
+                alVolver = {
+                    controladorNavegacion.popBackStack()
                 }
             )
         }
