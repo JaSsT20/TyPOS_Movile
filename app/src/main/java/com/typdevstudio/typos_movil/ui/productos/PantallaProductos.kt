@@ -25,15 +25,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +48,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -59,11 +59,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.ui.componentes.DialogoEscanerCodigoBarras
+import com.typdevstudio.typos_movil.ui.componentes.BotonCancelarPos
+import com.typdevstudio.typos_movil.ui.componentes.BotonPos
+import com.typdevstudio.typos_movil.ui.componentes.DialogoPos
+import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
@@ -103,6 +108,7 @@ fun PantallaProductos(
         }
     }
 
+    var productoADesactivar by remember { mutableStateOf<ProductoEntidad?>(null) }
     var productoAEliminar by remember { mutableStateOf<ProductoEntidad?>(null) }
     var mostrarEscanerBusqueda by remember { mutableStateOf(false) }
 
@@ -116,26 +122,48 @@ fun PantallaProductos(
         alCerrar = { mostrarEscanerBusqueda = false }
     )
 
-    if (productoAEliminar != null) {
-        AlertDialog(
-            onDismissRequest = { productoAEliminar = null },
-            title = { Text("Eliminar Producto", fontWeight = FontWeight.Bold) },
-            text = { Text("¿Estás seguro de que deseas eliminar permanentemente \"${productoAEliminar?.nombre}\"?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        productoAEliminar?.let { viewModel.eliminarProducto(it.id) }
-                        productoAEliminar = null
-                    }
-                ) {
-                    Text("Eliminar", color = RojoError, fontWeight = FontWeight.Bold)
-                }
+    productoADesactivar?.let { producto ->
+        DialogoPos(
+            alDescartar = { productoADesactivar = null },
+            icono = Icons.Filled.Block,
+            colorIcono = AmarilloAdvertencia,
+            titulo = "¿Desactivar producto?",
+            mensaje = "\"${producto.nombre}\" dejará de aparecer en ventas y búsquedas. Lo encontrarás en el filtro " +
+                "Desactivados, donde puedes reactivarlo o eliminarlo.",
+            acciones = {
+                BotonPos(
+                    texto = "Desactivar",
+                    alHacerClic = {
+                        viewModel.desactivarProducto(producto)
+                        productoADesactivar = null
+                    },
+                    variante = VarianteBoton.PELIGRO,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                BotonCancelarPos(texto = "Cancelar", alHacerClic = { productoADesactivar = null }, modifier = Modifier.fillMaxWidth())
             },
-            dismissButton = {
-                TextButton(onClick = { productoAEliminar = null }) {
-                    Text("Cancelar")
-                }
-            }
+        )
+    }
+
+    productoAEliminar?.let { producto ->
+        DialogoPos(
+            alDescartar = { productoAEliminar = null },
+            icono = Icons.Filled.DeleteForever,
+            colorIcono = RojoError,
+            titulo = "¿Eliminar definitivamente?",
+            mensaje = "\"${producto.nombre}\" se borrará y no se podrá recuperar. Las ventas ya hechas no se pierden.",
+            acciones = {
+                BotonPos(
+                    texto = "Eliminar",
+                    alHacerClic = {
+                        viewModel.eliminarDefinitivamente(producto)
+                        productoAEliminar = null
+                    },
+                    variante = VarianteBoton.PELIGRO,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                BotonCancelarPos(texto = "Cancelar", alHacerClic = { productoAEliminar = null }, modifier = Modifier.fillMaxWidth())
+            },
         )
     }
 
@@ -384,6 +412,8 @@ fun PantallaProductos(
                                 viewModel.cargarParaEditar(producto)
                                 alEditarProducto(producto)
                             },
+                            alDesactivar = { productoADesactivar = producto },
+                            alReactivar = { viewModel.reactivarProducto(producto) },
                             alEliminar = { productoAEliminar = producto }
                         )
                     }
@@ -400,6 +430,8 @@ fun PantallaProductos(
 fun TarjetaProductoModerna(
     producto: ProductoEntidad,
     alEditar: () -> Unit,
+    alDesactivar: () -> Unit,
+    alReactivar: () -> Unit,
     alEliminar: () -> Unit
 ) {
     Card(
@@ -539,43 +571,34 @@ fun TarjetaProductoModerna(
                 }
             }
 
-            // Botones de acción estilizados (sin solapamiento en pantallas pequeñas)
+            // Botones de acción estilizados (sin solapamiento en pantallas pequeñas). Un producto activo se edita o se
+            // desactiva; uno desactivado solo se reactiva o se elimina definitivamente.
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(AzulPrimarioClaro.copy(alpha = 0.35f))
-                        .clickable(onClick = alEditar),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = "Editar",
-                        tint = AzulPrimario,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(RojoError.copy(alpha = 0.12f))
-                        .clickable(onClick = alEliminar),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Eliminar",
-                        tint = RojoError,
-                        modifier = Modifier.size(18.dp)
-                    )
+                if (producto.estaActivo) {
+                    BotonAccionProducto(Icons.Filled.Edit, "Editar", AzulPrimario, AzulPrimarioClaro.copy(alpha = 0.35f), alEditar)
+                    BotonAccionProducto(Icons.Filled.Block, "Desactivar", AmarilloAdvertencia, AmarilloAdvertencia.copy(alpha = 0.15f), alDesactivar)
+                } else {
+                    BotonAccionProducto(Icons.Filled.Restore, "Reactivar", VerdeExito, VerdeExito.copy(alpha = 0.12f), alReactivar)
+                    BotonAccionProducto(Icons.Filled.DeleteForever, "Eliminar", RojoError, RojoError.copy(alpha = 0.12f), alEliminar)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BotonAccionProducto(icono: ImageVector, descripcion: String, color: Color, fondo: Color, alHacerClic: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(fondo)
+            .clickable(onClick = alHacerClic),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(imageVector = icono, contentDescription = descripcion, tint = color, modifier = Modifier.size(18.dp))
     }
 }

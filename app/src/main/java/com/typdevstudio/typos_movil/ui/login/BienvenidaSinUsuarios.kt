@@ -135,8 +135,8 @@ fun DialogoRegistroEnviado(estado: BienvenidaUiState, viewModel: LoginViewModel)
         icono = Icons.Filled.MarkEmailRead,
         colorIcono = VerdeExito,
         titulo = "¡Registro enviado!",
-        mensaje = (estado.mensajeRegistro?.takeIf { it.isNotBlank() } ?: "Recibimos tu registro.") +
-            " Avísanos por WhatsApp para activar tu licencia más rápido.",
+        mensaje = "Recibimos tu registro. Mientras tu proveedor activa tu licencia, la app queda en modo consulta; " +
+            "cuando esté lista se activará sola. Avísanos por WhatsApp para activarla más rápido.",
         acciones = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 BotonPos(

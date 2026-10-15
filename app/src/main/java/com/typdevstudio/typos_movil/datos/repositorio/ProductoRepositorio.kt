@@ -44,7 +44,31 @@ class ProductoRepositorio(private val productoDao: ProductoDao) {
         productoDao.obtenerTodosDirecto()
     }
 
-    suspend fun eliminarProducto(id: Long) = withContext(Dispatchers.IO) {
+    /** Todos los productos, activos y desactivados (para el catálogo). */
+    fun obtenerTodos(): Flow<List<ProductoEntidad>> = productoDao.obtenerTodos()
+
+    /** Deja de usarse en toda la app (ventas, búsqueda, importación), pero se puede reactivar. */
+    suspend fun desactivarProducto(id: Long) = withContext(Dispatchers.IO) {
         productoDao.desactivar(id)
+    }
+
+    /**
+     * Vuelve a activar el producto. `null` si se pudo; si no, el motivo (otro producto activo ya usa su código de
+     * barras).
+     */
+    suspend fun reactivarProducto(id: Long): String? = withContext(Dispatchers.IO) {
+        val producto = productoDao.obtenerPorId(id) ?: return@withContext "El producto ya no existe."
+        val codigo = producto.codigoBarras?.takeIf { it.isNotBlank() }
+        val otro = codigo?.let { productoDao.obtenerPorCodigoBarras(it) }
+        if (otro != null && otro.id != id) {
+            return@withContext "No se puede reactivar: el producto \"${otro.nombre}\" ya usa el código $codigo."
+        }
+        productoDao.reactivar(id)
+        null
+    }
+
+    /** Borra de verdad un producto desactivado. `false` si no estaba desactivado. */
+    suspend fun eliminarDefinitivamente(id: Long): Boolean = withContext(Dispatchers.IO) {
+        productoDao.eliminarDesactivado(id) > 0
     }
 }

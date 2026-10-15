@@ -38,6 +38,21 @@ interface ProductoDao {
     @Query("UPDATE productos SET stock = stock - :cantidadVendida WHERE id = :idProducto")
     suspend fun descontarStock(idProducto: Long, cantidadVendida: Double)
 
+    /** Todos, activos y desactivados: el catálogo los separa con el filtro "Desactivados". */
+    @Query("SELECT * FROM productos ORDER BY nombre ASC")
+    fun obtenerTodos(): Flow<List<ProductoEntidad>>
+
+    @Query("UPDATE productos SET esta_activo = 1 WHERE id = :id")
+    suspend fun reactivar(id: Long)
+
+    /**
+     * Borra el producto solo si está desactivado. Las ventas no se pierden: guardan su propia copia del nombre y el
+     * precio, y su referencia al producto queda en NULL.
+     */
+    @Query("DELETE FROM productos WHERE id = :id AND esta_activo = 0")
+    suspend fun eliminarDesactivado(id: Long): Int
+
+    /** Desactivar: deja de aparecer en ventas, catálogo e importación, pero se puede reactivar. */
     @Query("UPDATE productos SET esta_activo = 0 WHERE id = :id")
     suspend fun desactivar(id: Long)
 }

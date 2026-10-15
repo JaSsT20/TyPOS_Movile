@@ -12,8 +12,8 @@ android {
         applicationId = "com.typdevstudio.typos_movil"
         minSdk = 24
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.2.2"
+        versionCode = 27
+        versionName = "1.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

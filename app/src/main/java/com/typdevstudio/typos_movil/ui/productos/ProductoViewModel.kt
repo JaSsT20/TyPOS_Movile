@@ -26,7 +26,10 @@ enum class FiltroStock(val etiqueta: String) {
     EN_STOCK("En Stock"),
     STOCK_BAJO("Stock Bajo (≤ 5)"),
     AGOTADOS("Agotados"),
-    SIN_CONTROL_STOCK("Sin Control de Stock")
+    SIN_CONTROL_STOCK("Sin Control de Stock"),
+
+    /** Productos desactivados: no se usan en ninguna parte de la app; desde aquí se reactivan o se eliminan. */
+    DESACTIVADOS("Desactivados")
 }
 
 data class FormularioProductoUiState(
@@ -71,12 +74,13 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
     private val _filtroStock = MutableStateFlow(FiltroStock.TODOS)
     val filtroStock: StateFlow<FiltroStock> = _filtroStock.asStateFlow()
 
-    private val _productosOriginales = repositorio.obtenerTodosActivos()
+    // Activos y desactivados: el filtro "Desactivados" muestra solo estos; el resto, solo los activos.
+    private val _productosOriginales = repositorio.obtenerTodos()
 
     // Lista de categorías únicas para los filtros rápidos
     val categoriasDisponibles: StateFlow<List<String>> = _productosOriginales
         .combine(_categoriaSeleccionada) { lista, _ ->
-            val categorias = lista.map { it.categoria.trim().ifEmpty { "General" } }.distinct().sorted()
+            val categorias = lista.filter { it.estaActivo }.map { it.categoria.trim().ifEmpty { "General" } }.distinct().sorted()
             listOf("Todas") + categorias
         }
         .stateIn(
@@ -101,9 +105,12 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
             // Filtro por categoría
             val coincideCategoria = cat == "Todas" || producto.categoria.equals(cat, ignoreCase = true)
 
+            // Los desactivados solo aparecen en su propio filtro; el resto de filtros muestra solo activos.
+            val coincideEstado = producto.estaActivo != (stockFilter == FiltroStock.DESACTIVADOS)
+
             // Filtro por stock / tipo
             val coincideStock = when (stockFilter) {
-                FiltroStock.TODOS -> true
+                FiltroStock.TODOS, FiltroStock.DESACTIVADOS -> true
                 FiltroStock.PRODUCTOS -> producto.tipoItem.equals("Producto", ignoreCase = true)
                 FiltroStock.SERVICIOS -> producto.tipoItem.equals("Servicio", ignoreCase = true)
                 FiltroStock.EN_STOCK -> producto.tipoItem.equals("Producto", ignoreCase = true) && producto.controlaStock && producto.stock > 5
@@ -112,7 +119,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
                 FiltroStock.SIN_CONTROL_STOCK -> producto.tipoItem.equals("Producto", ignoreCase = true) && !producto.controlaStock
             }
 
-            coincideTexto && coincideCategoria && coincideStock
+            coincideTexto && coincideCategoria && coincideEstado && coincideStock
         }
     }.stateIn(
         scope = viewModelScope,
@@ -312,13 +319,27 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun eliminarProducto(id: Long) {
+    /** Deja de usarse en toda la app (ventas, búsqueda, importación) y pasa al filtro "Desactivados". */
+    fun desactivarProducto(producto: ProductoEntidad) = conLicencia {
+        repositorio.desactivarProducto(producto.id)
+        "\"${producto.nombre}\" se desactivó. Lo encuentras en el filtro Desactivados."
+    }
+
+    fun reactivarProducto(producto: ProductoEntidad) = conLicencia {
+        repositorio.reactivarProducto(producto.id) ?: "\"${producto.nombre}\" está activo otra vez."
+    }
+
+    /** Solo para productos desactivados. Las ventas ya hechas no se pierden. */
+    fun eliminarDefinitivamente(producto: ProductoEntidad) = conLicencia {
+        if (repositorio.eliminarDefinitivamente(producto.id)) "\"${producto.nombre}\" se eliminó."
+        else "Solo se pueden eliminar productos desactivados."
+    }
+
+    /** Las acciones que modifican el catálogo respetan el modo solo consulta; [accion] devuelve el aviso a mostrar. */
+    private fun conLicencia(accion: suspend () -> String) {
         viewModelScope.launch {
-            if (!LicenciaGuard.puedeEmitir()) {
-                _mensajeAviso.value = SituacionLicencia.MENSAJE_ACCION_BLOQUEADA_CORTO
-                return@launch
-            }
-            repositorio.eliminarProducto(id)
+            _mensajeAviso.value =
+                if (!LicenciaGuard.puedeEmitir()) SituacionLicencia.MENSAJE_ACCION_BLOQUEADA_CORTO else accion()
         }
     }
 

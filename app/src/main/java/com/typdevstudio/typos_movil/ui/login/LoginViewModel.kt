@@ -14,7 +14,9 @@ import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
 import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
 import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import com.typdevstudio.typos_movil.utilidades.licencia.SincronizacionUsuarios
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ArchivoSeguro
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.DatosRegistro
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.PreferenciasCifradas
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoRegistro
 import kotlinx.coroutines.flow.SharingStarted
@@ -64,15 +66,17 @@ data class BienvenidaUiState(
     val error: String? = null,
     /** Aviso tras activar la licencia (por ejemplo, que todavía no tiene usuarios). */
     val aviso: String? = null,
-    /** El registro se envió: se muestra el aviso con "Avisar por WhatsApp" y "Entrar". */
+    /** El registro se envió: se muestra el aviso con "Notificar por WhatsApp" y "Entrar". */
     val registroEnviado: Boolean = false,
-    val mensajeRegistro: String? = null,
 )
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     val repositorio: UsuarioRepositorio
     private val prefs = application.getSharedPreferences("typos_credenciales_pref", Context.MODE_PRIVATE)
+
+    /** Contraseña recordada, cifrada con el Keystore (mismo archivo protegido que la licencia, fuera de los respaldos). */
+    private val credencialesCifradas: ArchivoSeguro = PreferenciasCifradas(application)
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -94,7 +98,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * "Recordar" guarda solo el nombre de usuario: la contraseña nunca se guarda.
+     * "Recordar" guarda el usuario y la contraseña para no escribirlos cada vez. La contraseña nunca queda en texto
+     * plano: se cifra con una llave del chip de seguridad del teléfono (Keystore) y no viaja en los respaldos.
      * Las versiones anteriores la guardaban en texto plano; si quedó alguna, se borra aquí.
      */
     private fun cargarCredencialesGuardadas() {
@@ -106,7 +111,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun estadoInicial(): LoginUiState =
         if (prefs.getBoolean("recordar", false)) {
-            LoginUiState(usuario = prefs.getString("usuario", "") ?: "", recordar = true)
+            LoginUiState(
+                usuario = prefs.getString("usuario", "") ?: "",
+                clave = credencialesCifradas.leer(CLAVE_RECORDADA).orEmpty(),
+                recordar = true,
+            )
         } else {
             LoginUiState()
         }
@@ -137,12 +146,15 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update {
             it.copy(recordar = nuevoRecordar)
         }
-        if (!nuevoRecordar) {
-            prefs.edit()
-                .putBoolean("recordar", false)
-                .remove("usuario")
-                .apply()
-        }
+        if (!nuevoRecordar) olvidarCredenciales()
+    }
+
+    private fun olvidarCredenciales() {
+        prefs.edit()
+            .putBoolean("recordar", false)
+            .remove("usuario")
+            .apply()
+        credencialesCifradas.escribir(mapOf(CLAVE_RECORDADA to null))
     }
 
     fun onUsuarioRegistradoConExito(nombreUsuario: String) {
@@ -200,11 +212,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                             .putBoolean("recordar", true)
                             .putString("usuario", usuarioTrim)
                             .apply()
+                        credencialesCifradas.escribir(mapOf(CLAVE_RECORDADA to claveTrim))
                     } else {
-                        prefs.edit()
-                            .putBoolean("recordar", false)
-                            .remove("usuario")
-                            .apply()
+                        olvidarCredenciales()
                     }
 
                     GestorSesion.iniciarSesion(resultado.usuario)
@@ -283,7 +293,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                     guardarDatosDelNegocio(datos)
                     crearAdministradorLocal(f) ?: run {
                         _bienvenida.update {
-                            it.copy(estaGuardando = false, formulario = null, registroEnviado = true, mensajeRegistro = resultado.mensaje)
+                            it.copy(estaGuardando = false, formulario = null, registroEnviado = true)
                         }
                         null
                     }
@@ -399,5 +409,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
         /** Preferencia donde las versiones anteriores guardaban la contraseña en texto plano. */
         const val CLAVE_ANTIGUA = "clave"
+
+        /** Campo cifrado con la contraseña recordada. */
+        const val CLAVE_RECORDADA = "login_clave_recordada"
     }
 }

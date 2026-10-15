@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -75,7 +76,8 @@ fun PantallaLogin(
     val situacionLicencia by LicenciaGuard.situacion.collectAsState()
     // Códigos de invitación: solo durante la transición. Con licencia en la nube los usuarios se crean en
     // Configuración > Usuarios y llegan solos a cada teléfono.
-    val permiteCodigoInvitacion = LicenciaGuard.USAR_LICENCIA_ANTIGUA && situacionLicencia.clave == null
+    val permiteCodigoInvitacion = LicenciaGuard.USAR_LICENCIA_ANTIGUA && situacionLicencia.clave == null &&
+        situacionLicencia.estadoRegistro == null
     val focusManager = LocalFocusManager.current
     var mostrarDialogoActivacion by remember { mutableStateOf(false) }
 
@@ -96,6 +98,9 @@ fun PantallaLogin(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            // Con la pantalla de borde a borde, el teclado no achica la ventana: se reserva su espacio para que el
+            // campo que se está escribiendo se desplace y quede a la vista.
+            .imePadding()
             .padding(horizontal = 24.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -229,7 +234,7 @@ fun PantallaLogin(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Opción para recordar el usuario (la contraseña nunca se guarda)
+                    // Recordar usuario y contraseña (la contraseña se guarda cifrada, nunca en texto plano)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -249,7 +254,7 @@ fun PantallaLogin(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Recordar usuario",
+                            text = "Recordar",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
