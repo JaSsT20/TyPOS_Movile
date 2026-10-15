@@ -1,24 +1,31 @@
 package com.typdevstudio.typos_movil.utilidades.licencia
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.util.Log
 import com.typdevstudio.typos_movil.BuildConfig
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
 import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.DatosRegistro
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.EstadoLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.HoraRD
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.MotivoRestriccion
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.PayloadLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.RepositorioLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoRegistro
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoUsuarios
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -44,7 +51,17 @@ data class SituacionLicencia(
     val ultimaValidacionMs: Long? = null,
     /** Mensaje de la API que acompañó al bloqueo vigente. Si existe, es el que se muestra al usuario. */
     val mensajeServidor: String? = null,
+    /** Registro del negocio esperando licencia: `pendiente` o `rechazado` (`null` si no hay). */
+    val estadoRegistro: String? = null,
+    /** Mensaje del servidor sobre el registro (el motivo, si lo rechazaron). */
+    val mensajeRegistro: String? = null,
 ) {
+    /** `true` si el negocio se registró y espera que el proveedor le asigne la licencia. */
+    val registroPendiente: Boolean get() = nube == EstadoLicencia.SinActivar && estadoRegistro == RepositorioLicencia.ESTADO_PENDIENTE
+
+    /** `true` si el proveedor rechazó el registro del negocio. */
+    val registroRechazado: Boolean get() = nube == EstadoLicencia.SinActivar && estadoRegistro == RepositorioLicencia.ESTADO_RECHAZADO
+
     /** Ventas, anulaciones, productos, importación, restauración y usuarios nuevos. */
     val permiteEmitir: Boolean get() = usaLicenciaAntigua || nube.permiteEmitir
 
@@ -102,9 +119,13 @@ data class SituacionLicencia(
     /** Texto para el usuario cuando está en modo restringido. */
     fun mensajeRestriccion(): String = mensajeServidor ?: when (motivoRestriccion) {
         null -> ""
-        MotivoRestriccion.SIN_ACTIVAR ->
-            if (antigua != null && !antigua.vigente) "Tu licencia anterior venció. Activa tu nueva licencia para seguir vendiendo."
-            else "Este teléfono no tiene una licencia activa. Ingresa tu clave de licencia para empezar a vender."
+        MotivoRestriccion.SIN_ACTIVAR -> when {
+            registroPendiente ->
+                "Tu registro está en revisión. Cuando tu proveedor active tu licencia, la app se activará sola (con internet)."
+            registroRechazado -> mensajeRegistro ?: "Tu registro no fue aprobado. Comunícate con tu proveedor."
+            antigua != null && !antigua.vigente -> "Tu licencia anterior venció. Activa tu nueva licencia para seguir vendiendo."
+            else -> "Este teléfono no tiene una licencia activa. Ingresa tu clave de licencia para empezar a vender."
+        }
         MotivoRestriccion.TOKEN_EXPIRADO ->
             "Pasaron demasiados días sin validar la licencia. Conéctate a internet y toca «Validar ahora»."
         MotivoRestriccion.SUSPENDIDA -> "La licencia está suspendida. Comunícate con tu proveedor."
@@ -207,13 +228,15 @@ object LicenciaGuard {
     private lateinit var repositorioAntiguo: LicenciaRepositorio
     private lateinit var aplicacion: Context
 
-    private val validacionAutomaticaEnCurso = AtomicBoolean(false)
+    private val cicloEnCurso = AtomicBoolean(false)
     @Volatile
-    private var ultimoIntentoAutomaticoMs: Long? = null
+    private var ultimoCicloMs: Long? = null
+    @Volatile
+    private var bucleConApp: Job? = null
 
     /**
      * Se llama una vez en `TyPosApp.onCreate`. Evalúa el estado local (no espera la red), lo reevalúa cada minuto,
-     * programa la validación periódica y, si pasaron más de 12 horas, valida en segundo plano.
+     * programa la sincronización en segundo plano y sincroniza en cuanto vuelve la conexión.
      */
     @Synchronized
     fun inicializar(contexto: Context) {
@@ -228,7 +251,6 @@ object LicenciaGuard {
         GestorUsuarios.inicializar(repositorio, baseDatos.usuarioDao())
         alcance.launch {
             actualizar()
-            validarSiHaceFalta()
             while (true) {
                 delay(INTERVALO_REEVALUACION_MS)
                 actualizar()
@@ -237,37 +259,108 @@ object LicenciaGuard {
         try {
             PlanificadorValidacionLicencia.programarPeriodica(aplicacion)
         } catch (e: Exception) {
-            Log.e(ETIQUETA_LOG, "No se pudo programar la validación periódica", e)
+            Log.e(ETIQUETA_LOG, "No se pudo programar la sincronización en segundo plano", e)
         }
+        escucharConexion()
     }
 
-    /**
-     * Al abrir la app o volver a ella: si pasaron más de 12 horas desde la última validación, valida en segundo
-     * plano. Nunca bloquea ni retrasa la pantalla. Si no hay red, deja programado un intento para cuando vuelva.
-     */
-    fun validarSiHaceFalta() {
-        if (!::repositorio.isInitialized || !validacionAutomaticaEnCurso.compareAndSet(false, true)) return
-        alcance.launch {
-            try {
-                val ahora = System.currentTimeMillis()
-                // Con licencia antigua vigente y sin licencia nueva, se pasa sola a la nube en vez de validar.
-                val migrar = debeMigrar()
-                if (!PoliticaValidacionAutomatica.debeIntentar(migrar || necesitaValidar(), ultimoIntentoAutomaticoMs, ahora)) return@launch
-                ultimoIntentoAutomaticoMs = ahora
-                val resultado = if (migrar) migrarAhora() else validarAhora()
-                if (resultado is ResultadoLicencia.SinConexion) {
+    // ---------------------------------------------------------------------
+    // Sincronización con la API: mientras haya internet, el teléfono se mantiene al día con lo que se cambie en
+    // el portal (vencimiento, plan, gracia, suspensión, usuarios...). Cada ciclo es una sola petición pequeña,
+    // corre fuera del hilo principal y nunca bloquea ni muestra errores: si falla, se reintenta en el siguiente.
+    // ---------------------------------------------------------------------
+
+    /** La app pasó a primer plano: sincroniza ya y luego cada [PoliticaSincronizacion.INTERVALO_CON_APP_ABIERTA_MS]. */
+    fun alAbrirApp() {
+        if (!::repositorio.isInitialized || bucleConApp?.isActive == true) return
+        bucleConApp = alcance.launch {
+            while (isActive) {
+                if (sincronizarAhora() == ResultadoSincronizacion.SIN_CONEXION) {
                     PlanificadorValidacionLicencia.programarAlReconectar(aplicacion)
                 }
-            } catch (e: Exception) {
-                Log.e(ETIQUETA_LOG, "Error en la validación automática", e)
-            } finally {
-                validacionAutomaticaEnCurso.set(false)
+                delay(PoliticaSincronizacion.INTERVALO_CON_APP_ABIERTA_MS)
             }
         }
     }
 
-    /** `true` si hay licencia nueva y pasaron más de 12 horas desde la última validación exitosa. */
-    suspend fun necesitaValidar(): Boolean = withContext(Dispatchers.IO) { repositorio.necesitaValidar() }
+    /** La app dejó de verse: el bucle se detiene (en segundo plano sigue WorkManager, cada 15 minutos). */
+    fun alCerrarApp() {
+        bucleConApp?.cancel()
+        bucleConApp = null
+    }
+
+    /**
+     * Un ciclo: según el estado del teléfono valida la licencia, consulta el registro pendiente o migra la licencia
+     * antigua. Nunca corren dos a la vez ni se repite antes de [PoliticaSincronizacion.MINIMO_ENTRE_CICLOS_MS].
+     */
+    suspend fun sincronizarAhora(): ResultadoSincronizacion = withContext(Dispatchers.IO) {
+        if (!::repositorio.isInitialized) return@withContext ResultadoSincronizacion.OMITIDA
+        val ahora = System.currentTimeMillis()
+        if (!PoliticaSincronizacion.debeIntentar(ultimoCicloMs, ahora) || !cicloEnCurso.compareAndSet(false, true)) {
+            return@withContext ResultadoSincronizacion.OMITIDA
+        }
+        try {
+            ultimoCicloMs = ahora
+            val datos = repositorio.datosGuardados()
+            val accion = PoliticaSincronizacion.accion(
+                tieneLicencia = datos.clave != null,
+                registroPendiente = datos.estadoRegistro == RepositorioLicencia.ESTADO_PENDIENTE,
+                puedeMigrar = datos.clave == null && datos.estadoRegistro == null && debeMigrar(),
+            )
+            val sinConexion = when (accion) {
+                AccionSincronizacion.VALIDAR -> validarAhora() is ResultadoLicencia.SinConexion
+                AccionSincronizacion.CONSULTAR_REGISTRO -> consultarRegistro() is ResultadoRegistro.SinConexion
+                AccionSincronizacion.MIGRAR -> migrarAhora() is ResultadoLicencia.SinConexion
+                AccionSincronizacion.NADA -> false
+            }
+            if (sinConexion) ResultadoSincronizacion.SIN_CONEXION else ResultadoSincronizacion.HECHA
+        } catch (e: Exception) {
+            Log.e(ETIQUETA_LOG, "Error en la sincronización", e)
+            ResultadoSincronizacion.HECHA
+        } finally {
+            cicloEnCurso.set(false)
+        }
+    }
+
+    /** Al recuperar internet con la app abierta, se sincroniza enseguida en vez de esperar el siguiente ciclo. */
+    private fun escucharConexion() {
+        try {
+            val conectividad = aplicacion.getSystemService(ConnectivityManager::class.java) ?: return
+            conectividad.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(red: Network) {
+                    if (bucleConApp?.isActive == true) alcance.launch { sincronizarAhora() }
+                }
+            })
+        } catch (e: Exception) {
+            Log.e(ETIQUETA_LOG, "No se pudo escuchar los cambios de conexión", e)
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Registro de un negocio nuevo (espera que el proveedor le asigne la licencia en el portal)
+    // ---------------------------------------------------------------------
+
+    /** Envía el registro del negocio. Si ya tenía licencia asignada, el teléfono queda activado de una vez. */
+    suspend fun registrar(datos: DatosRegistro): ResultadoRegistro =
+        operarRegistro { repositorio.registrar(datos, LicenciaViewModel.nombreTelefonoPorDefecto()) }
+
+    /** Cómo va el registro pendiente. Cuando el proveedor asigna la licencia, la guarda y descarga los usuarios. */
+    suspend fun consultarRegistro(): ResultadoRegistro =
+        operarRegistro { repositorio.consultarRegistro(LicenciaViewModel.nombreTelefonoPorDefecto()) }
+
+    private suspend fun operarRegistro(operacion: () -> ResultadoRegistro): ResultadoRegistro {
+        val resultado = withContext(Dispatchers.IO) {
+            try {
+                operacion()
+            } catch (e: Exception) {
+                Log.e(ETIQUETA_LOG, "Error inesperado con el registro", e)
+                ResultadoRegistro.SinConexion("Ocurrió un error inesperado. Intenta de nuevo.")
+            }
+        }
+        actualizar()
+        if (resultado is ResultadoRegistro.Asignado) sincronizarUsuariosSiHaceFalta(resultado.licencia, forzar = true)
+        return resultado
+    }
 
     /** Vuelve a evaluar con el reloj y lo guardado ahora mismo. Nunca lanza excepciones. */
     suspend fun actualizar(): SituacionLicencia = withContext(Dispatchers.IO) {
@@ -280,7 +373,13 @@ object LicenciaGuard {
                 val mensajeServidor = datos.mensajeBloqueoServidor
                     ?.takeIf { (nube as? EstadoLicencia.Restringida)?.motivo == datos.bloqueoServidor }
                 SituacionLicencia.combinar(nube, antigua, USAR_LICENCIA_ANTIGUA)
-                    .copy(clave = datos.clave, ultimaValidacionMs = datos.ultimaValidacionMs, mensajeServidor = mensajeServidor)
+                    .copy(
+                        clave = datos.clave,
+                        ultimaValidacionMs = datos.ultimaValidacionMs,
+                        mensajeServidor = mensajeServidor,
+                        estadoRegistro = datos.estadoRegistro,
+                        mensajeRegistro = datos.mensajeRegistro,
+                    )
                     .also { _situacion.value = it }
             } catch (e: Exception) {
                 // Un error inesperado no debe cerrar la app (el capturador global mata el proceso): se conserva lo anterior.
@@ -310,9 +409,11 @@ object LicenciaGuard {
     }
 
     suspend fun activar(clave: String, nombreDispositivo: String?): ResultadoLicencia =
-        operar { repositorio.activar(clave, nombreDispositivo) }.also { sincronizarUsuariosSiValida(it) }
+        operar { repositorio.activar(clave, nombreDispositivo) }.also { sincronizarUsuariosSiHaceFalta(it, forzar = true) }
 
-    suspend fun validarAhora(): ResultadoLicencia = operar { repositorio.validar() }.also { sincronizarUsuariosSiValida(it) }
+    /** Valida con la API; los usuarios solo se descargan si cambiaron desde la última vez (`version_usuarios`). */
+    suspend fun validarAhora(): ResultadoLicencia =
+        operar { repositorio.validar() }.also { sincronizarUsuariosSiHaceFalta(it, forzar = false) }
 
     /** `true` si conviene intentar ahora pasar la licencia antigua a la nube (ver [migrarAhora]). */
     suspend fun debeMigrar(): Boolean = claveAntiguaParaMigrar() != null
@@ -333,7 +434,7 @@ object LicenciaGuard {
             is ResultadoLicencia.Exito -> prefsMigracion().edit().clear().apply()
             else -> Unit
         }
-        sincronizarUsuariosSiValida(resultado)
+        sincronizarUsuariosSiHaceFalta(resultado, forzar = true)
         return resultado
     }
 
@@ -360,10 +461,15 @@ object LicenciaGuard {
 
     private fun prefsMigracion() = aplicacion.getSharedPreferences(PREFS_MIGRACION, Context.MODE_PRIVATE)
 
-    /** Tras activar o validar con éxito, el teléfono se pone al día con los usuarios de la licencia. */
-    private suspend fun sincronizarUsuariosSiValida(resultado: ResultadoLicencia) {
+    /**
+     * Tras una operación exitosa, el teléfono se pone al día con los usuarios de la licencia: siempre al activar,
+     * migrar o recibir la licencia del registro ([forzar]); al validar, solo si cambió `version_usuarios`.
+     */
+    private suspend fun sincronizarUsuariosSiHaceFalta(resultado: ResultadoLicencia, forzar: Boolean) {
         if (resultado !is ResultadoLicencia.Exito) return
-        GestorUsuarios.sincronizar()
+        val version = resultado.versionUsuarios
+        if (!forzar && version != null && version == repositorio.datosGuardados().versionUsuarios) return
+        if (GestorUsuarios.sincronizar() is ResultadoUsuarios.Exito) repositorio.guardarVersionUsuarios(version)
         actualizar() // por si la API comunicó un bloqueo durante la sincronización
     }
 

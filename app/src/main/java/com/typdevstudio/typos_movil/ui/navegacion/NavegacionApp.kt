@@ -11,7 +11,9 @@ import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +34,7 @@ import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
 import com.typdevstudio.typos_movil.ui.licencia.BloqueContactoLicencia
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
+import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.configuracion.ConfiguracionViewModel
 import com.typdevstudio.typos_movil.ui.configuracion.PantallaConfiguracion
 import com.typdevstudio.typos_movil.ui.historial.HistorialViewModel
@@ -152,6 +155,23 @@ fun NavegacionApp() {
 
     // Aviso de vencimiento de la licencia (5 días antes y el mismo día), con el contacto para renovar
     DialogoAvisoVencimiento()
+
+    // Sesión cerrada desde la licencia: el usuario fue desactivado en el portal o en otro teléfono
+    val avisoSesionCerrada by GestorSesion.avisoSesionCerrada.collectAsState()
+    avisoSesionCerrada?.let { motivo ->
+        val volverAlInicioDeSesion = {
+            GestorSesion.descartarAvisoSesionCerrada()
+            controladorNavegacion.navigate(Ruta.Login.ruta) { popUpTo(0) { inclusive = true } }
+        }
+        DialogoPos(
+            alDescartar = volverAlInicioDeSesion,
+            icono = Icons.Filled.Lock,
+            colorIcono = RojoError,
+            titulo = "Sesión cerrada",
+            mensaje = motivo,
+            acciones = { BotonPos(texto = "Entendido", alHacerClic = volverAlInicioDeSesion) }
+        )
+    }
 
     // Modal de nueva actualización encontrada al abrir
     infoActualizacion?.let { info ->

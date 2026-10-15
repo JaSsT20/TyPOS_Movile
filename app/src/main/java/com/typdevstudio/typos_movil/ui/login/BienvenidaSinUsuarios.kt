@@ -10,37 +10,50 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.typdevstudio.typos_movil.BuildConfig
 import com.typdevstudio.typos_movil.ui.componentes.BotonCancelarPos
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.CampoTextoPos
 import com.typdevstudio.typos_movil.ui.componentes.DialogoPos
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
+import com.typdevstudio.typos_movil.ui.licencia.abrirWhatsApp
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
 import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
+import kotlinx.coroutines.launch
 
 /**
- * Lo que se muestra en lugar del inicio de sesión cuando el teléfono no tiene usuarios: crear el primer
- * administrador o, si el negocio ya tiene licencia, activarla para traer sus usuarios.
+ * Lo que se muestra en lugar del inicio de sesión cuando el teléfono no tiene usuarios: registrar el negocio (y su
+ * administrador) para que el proveedor le asigne una licencia o, si el negocio ya tiene licencia, activarla para
+ * traer sus usuarios.
  */
 @Composable
 fun TarjetaBienvenidaSinUsuarios(estado: BienvenidaUiState, viewModel: LoginViewModel) {
@@ -73,6 +86,20 @@ fun TarjetaBienvenidaSinUsuarios(estado: BienvenidaUiState, viewModel: LoginView
             }
 
             BotonPos(
+                texto = "Registrar mi negocio",
+                alHacerClic = { viewModel.abrirBienvenida(FormularioBienvenida.REGISTRAR_NEGOCIO) },
+                icono = Icons.Filled.Storefront,
+                variante = VarianteBoton.PRIMARIO,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                "Si es la primera vez: registra tu negocio y crea tu usuario. Tu proveedor activará tu licencia y la " +
+                    "app se activará sola.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            BotonPos(
                 texto = "Ya tengo licencia",
                 alHacerClic = { viewModel.abrirBienvenida(FormularioBienvenida.ACTIVAR_LICENCIA) },
                 icono = Icons.Filled.Verified,
@@ -84,38 +111,123 @@ fun TarjetaBienvenidaSinUsuarios(estado: BienvenidaUiState, viewModel: LoginView
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            BotonPos(
-                texto = "Crear administrador",
-                alHacerClic = { viewModel.abrirBienvenida(FormularioBienvenida.CREAR_ADMINISTRADOR) },
-                icono = Icons.Filled.AdminPanelSettings,
-                variante = VarianteBoton.PRIMARIO,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                "Si es la primera vez: crea el usuario dueño del negocio. Después podrás agregar a tus cajeros.",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 
     when (estado.formulario) {
-        FormularioBienvenida.CREAR_ADMINISTRADOR -> DialogoCrearAdministrador(estado, viewModel)
+        FormularioBienvenida.REGISTRAR_NEGOCIO -> DialogoRegistrarNegocio(estado, viewModel)
         FormularioBienvenida.ACTIVAR_LICENCIA -> DialogoActivarLicencia(estado, viewModel)
         null -> Unit
     }
 }
 
+/**
+ * Aviso tras enviar el registro: el negocio puede avisar por WhatsApp al proveedor para que le active la licencia y
+ * luego entrar (en modo consulta hasta que la licencia llegue). Se muestra desde la pantalla de inicio de sesión
+ * porque, al crearse el administrador, la tarjeta de bienvenida ya no aparece.
+ */
 @Composable
-private fun DialogoCrearAdministrador(estado: BienvenidaUiState, viewModel: LoginViewModel) {
+fun DialogoRegistroEnviado(estado: BienvenidaUiState, viewModel: LoginViewModel) {
+    val contexto = LocalContext.current
+    val alcance = rememberCoroutineScope()
+    DialogoPos(
+        alDescartar = { viewModel.entrarTrasRegistro() },
+        icono = Icons.Filled.MarkEmailRead,
+        colorIcono = VerdeExito,
+        titulo = "¡Registro enviado!",
+        mensaje = (estado.mensajeRegistro?.takeIf { it.isNotBlank() } ?: "Recibimos tu registro.") +
+            " Avísanos por WhatsApp para activar tu licencia más rápido.",
+        acciones = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                BotonPos(
+                    texto = "Notificar por WhatsApp",
+                    alHacerClic = {
+                        alcance.launch {
+                            abrirWhatsApp(contexto, BuildConfig.WHATSAPP_REGISTROS, viewModel.mensajeWhatsAppRegistro())
+                        }
+                    },
+                    icono = Icons.AutoMirrored.Filled.Chat,
+                    variante = VarianteBoton.EXITO,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                BotonPos(
+                    texto = "Entrar",
+                    alHacerClic = { viewModel.entrarTrasRegistro() },
+                    variante = VarianteBoton.SECUNDARIO,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+    )
+}
+
+@Composable
+private fun DialogoRegistrarNegocio(estado: BienvenidaUiState, viewModel: LoginViewModel) {
     DialogoPos(
         alDescartar = { viewModel.cerrarBienvenida() },
-        icono = Icons.Filled.AdminPanelSettings,
+        icono = Icons.Filled.Storefront,
         colorIcono = AzulPrimario,
-        titulo = "Crear administrador",
-        mensaje = "Este usuario podrá entrar a Configuración, Licencia y Usuarios.",
+        titulo = "Registrar mi negocio",
+        mensaje = "Necesitas internet. Los datos del negocio son los que saldrán en tus facturas.",
         contenido = {
+            SeccionFormulario("Tu negocio")
+            CampoTextoPos(
+                valor = estado.nombreNegocio,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(nombreNegocio = texto.take(200)) } },
+                etiqueta = "Nombre del negocio *",
+                iconoInicio = Icons.Filled.Storefront,
+                opcionesTeclado = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            CampoTextoPos(
+                valor = estado.telefonoNegocio,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(telefonoNegocio = texto.take(50)) } },
+                etiqueta = "Teléfono del negocio *",
+                iconoInicio = Icons.Filled.Phone,
+                opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            )
+            CampoTextoPos(
+                valor = estado.emailNegocio,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(emailNegocio = texto.take(200)) } },
+                etiqueta = "Correo (opcional)",
+                iconoInicio = Icons.Filled.Email,
+                opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Email),
+            )
+            CampoTextoPos(
+                valor = estado.rncNegocio,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(rncNegocio = texto.take(30)) } },
+                etiqueta = "RNC o cédula (opcional)",
+                iconoInicio = Icons.Filled.Badge,
+            )
+            CampoTextoPos(
+                valor = estado.direccionNegocio,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(direccionNegocio = texto.take(300)) } },
+                etiqueta = "Dirección (opcional)",
+                iconoInicio = Icons.Filled.Place,
+            )
+            CampoTextoPos(
+                valor = estado.sloganNegocio,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(sloganNegocio = texto.take(200)) } },
+                etiqueta = "Slogan (opcional)",
+                iconoInicio = Icons.Filled.FormatQuote,
+            )
+
+            SeccionFormulario("Persona de contacto")
+            CampoTextoPos(
+                valor = estado.contactoNombre,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(contactoNombre = texto.take(200)) } },
+                etiqueta = "Nombre (si es otra persona)",
+                iconoInicio = Icons.Filled.Person,
+                opcionesTeclado = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            CampoTextoPos(
+                valor = estado.contactoTelefono,
+                alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(contactoTelefono = texto.take(50)) } },
+                etiqueta = "Teléfono del contacto (opcional)",
+                iconoInicio = Icons.Filled.Phone,
+                opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            )
+
+            SeccionFormulario("Tu usuario (administrador)")
             CampoTextoPos(
                 valor = estado.nombreUsuario,
                 alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(nombreUsuario = texto.take(50)) } },
@@ -146,9 +258,9 @@ private fun DialogoCrearAdministrador(estado: BienvenidaUiState, viewModel: Logi
         },
         acciones = {
             BotonesFormulario(
-                textoAceptar = "Crear y entrar",
+                textoAceptar = "Registrar",
                 estaGuardando = estado.estaGuardando,
-                alAceptar = { viewModel.crearAdministrador() },
+                alAceptar = { viewModel.registrarNegocio() },
                 alCancelar = { viewModel.cerrarBienvenida() },
             )
         },
@@ -188,6 +300,18 @@ private fun DialogoActivarLicencia(estado: BienvenidaUiState, viewModel: LoginVi
                 alCancelar = { viewModel.cerrarBienvenida() },
             )
         },
+    )
+}
+
+/** Título pequeño para separar las partes del formulario de registro. */
+@Composable
+private fun SeccionFormulario(titulo: String) {
+    Text(
+        titulo,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        color = AzulPrimario,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
     )
 }
 

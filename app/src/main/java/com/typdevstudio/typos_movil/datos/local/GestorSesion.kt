@@ -18,6 +18,21 @@ object GestorSesion {
         _usuarioActivo.value = null
     }
 
+    private val _avisoSesionCerrada = MutableStateFlow<String?>(null)
+
+    /** Motivo por el que se cerró la sesión desde la licencia (usuario desactivado en el portal o en otro teléfono). */
+    val avisoSesionCerrada: StateFlow<String?> = _avisoSesionCerrada.asStateFlow()
+
+    /** Cierra la sesión porque la licencia ya no permite a este usuario; la app lo avisa y vuelve al inicio de sesión. */
+    fun cerrarPorLicencia(motivo: String) {
+        _usuarioActivo.value = null
+        _avisoSesionCerrada.value = motivo
+    }
+
+    fun descartarAvisoSesionCerrada() {
+        _avisoSesionCerrada.value = null
+    }
+
     fun esAdministrador(): Boolean {
         return _usuarioActivo.value?.rol == "ADMINISTRADOR"
     }

@@ -6,8 +6,11 @@ import com.typdevstudio.typos_movil.BuildConfig
 
 /** Resultado de activar, validar o desactivar, listo para mostrar al usuario. */
 sealed interface ResultadoLicencia {
-    /** La operación se completó; [estado] es el estado resultante. */
-    data class Exito(val estado: EstadoLicencia) : ResultadoLicencia
+    /**
+     * La operación se completó; [estado] es el estado resultante. [versionUsuarios] es la huella de los usuarios de la
+     * licencia que informó la API (`null` si no la envió): si difiere de la aplicada, hay que sincronizar usuarios.
+     */
+    data class Exito(val estado: EstadoLicencia, val versionUsuarios: String? = null) : ResultadoLicencia
 
     /** La API rechazó la operación. [mensaje] viene de la API, en español y para el cliente final. */
     data class Rechazada(val codigo: String, val mensaje: String) : ResultadoLicencia
@@ -20,6 +23,26 @@ sealed interface ResultadoLicencia {
 
     /** No hay una licencia nueva guardada en este teléfono. */
     data object SinLicencia : ResultadoLicencia
+}
+
+/** Resultado de registrar el negocio o de consultar cómo va el registro. */
+sealed interface ResultadoRegistro {
+    /** El proveedor todavía no asigna la licencia: el teléfono sigue en modo consulta. */
+    data class Pendiente(val mensaje: String) : ResultadoRegistro
+
+    /** El proveedor rechazó el registro. [mensaje] trae el motivo, si lo dio. */
+    data class Rechazado(val mensaje: String) : ResultadoRegistro
+
+    /** Ya hay licencia: [licencia] es el resultado de aceptar su token (normalmente [ResultadoLicencia.Exito]). */
+    data class Asignado(val licencia: ResultadoLicencia) : ResultadoRegistro
+
+    /** La API rechazó la solicitud (datos inválidos, teléfono ya activado...). [mensaje] es para el usuario. */
+    data class Rechazada(val codigo: String, val mensaje: String) : ResultadoRegistro
+
+    data class SinConexion(val mensaje: String) : ResultadoRegistro
+
+    /** Este teléfono no tiene un registro esperando licencia. */
+    data object SinRegistro : ResultadoRegistro
 }
 
 /** Resultado de una operación de usuarios contra la API. */
@@ -75,7 +98,7 @@ class RepositorioLicencia(
         val nombre = nombreDispositivo?.trim()?.take(MAXIMO_NOMBRE_DISPOSITIVO)?.takeIf { it.isNotEmpty() }
 
         return when (val respuesta = cliente.activar(clave, deviceHash(), nombre, versionApp.take(MAXIMO_VERSION))) {
-            is RespuestaApi.Token -> aceptarToken(clave, respuesta.token, "activación")
+            is RespuestaApi.Token -> aceptarToken(clave, respuesta.token, "activación", respuesta.versionUsuarios)
             is RespuestaApi.ErrorNegocio -> {
                 // En la activación el error solo se muestra: todavía no hay nada que bloquear.
                 registro.advertencia("Activación rechazada (${enmascararClave(clave)}): ${respuesta.codigo}")
@@ -83,7 +106,7 @@ class RepositorioLicencia(
             }
             is RespuestaApi.FallaRed -> sinConexion("activación", respuesta)
             // Respuestas que no corresponden a este endpoint.
-            RespuestaApi.Ok, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -98,32 +121,91 @@ class RepositorioLicencia(
         val nombre = nombreDispositivo?.trim()?.take(MAXIMO_NOMBRE_DISPOSITIVO)?.takeIf { it.isNotEmpty() }
 
         return when (val respuesta = cliente.migrar(claveAntigua.trim(), deviceHash(), nombre, versionApp.take(MAXIMO_VERSION))) {
-            is RespuestaApi.Token -> {
-                val claveNueva = (verificador.verificar(respuesta.token) as? ResultadoVerificacion.Valido)?.payload?.licencia
-                    ?.takeIf { FORMATO_CLAVE.matches(it) }
-                if (claveNueva == null) {
-                    registro.advertencia("migración: token rechazado")
-                    ResultadoLicencia.TokenNoValido(MENSAJE_TOKEN_NO_VALIDO)
-                } else {
-                    aceptarToken(claveNueva, respuesta.token, "migración")
-                }
-            }
+            is RespuestaApi.Token -> aceptarTokenConSuClave(respuesta.token, "migración", respuesta.versionUsuarios)
             is RespuestaApi.ErrorNegocio -> {
                 // Como en la activación: no hay nada que bloquear, la licencia antigua sigue mandando.
                 registro.advertencia("Migración rechazada: ${respuesta.codigo}")
                 ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("migración", respuesta)
-            RespuestaApi.Ok, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
+
+    /**
+     * Registra el negocio para que el proveedor le asigne una licencia. Si este teléfono ya tiene licencia no hace
+     * nada. Si el registro ya tenía licencia asignada (por ejemplo, tras reinstalar), la guarda de una vez.
+     */
+    @Synchronized
+    fun registrar(datos: DatosRegistro, nombreDispositivo: String?): ResultadoRegistro {
+        if (almacen.leer().clave != null) return ResultadoRegistro.Asignado(ResultadoLicencia.Exito(estadoActual()))
+        return procesarRegistro(
+            cliente.registrar(datos, deviceHash(), nombreLimpio(nombreDispositivo), versionApp.take(MAXIMO_VERSION))
+        )
+    }
+
+    /**
+     * Pregunta cómo va el registro pendiente de este teléfono. Con licencia asignada la guarda (el teléfono queda
+     * activado sin escribir ninguna clave). Sin registro guardado no llama a la API.
+     */
+    @Synchronized
+    fun consultarRegistro(nombreDispositivo: String?): ResultadoRegistro {
+        val datos = almacen.leer()
+        if (datos.clave != null || datos.estadoRegistro == null) return ResultadoRegistro.SinRegistro
+        return procesarRegistro(
+            cliente.estadoRegistro(deviceHash(), nombreLimpio(nombreDispositivo), versionApp.take(MAXIMO_VERSION))
+        )
+    }
+
+    private fun procesarRegistro(respuesta: RespuestaApi): ResultadoRegistro = when (respuesta) {
+        is RespuestaApi.Registro -> when (respuesta.estado) {
+            ESTADO_ASIGNADO -> ResultadoRegistro.Asignado(
+                aceptarTokenConSuClave(respuesta.token!!, "registro", respuesta.versionUsuarios)
+            )
+            ESTADO_RECHAZADO -> {
+                almacen.guardarRegistro(ESTADO_RECHAZADO, respuesta.mensaje)
+                registro.advertencia("Registro rechazado por el proveedor.")
+                ResultadoRegistro.Rechazado(respuesta.mensaje)
+            }
+            else -> {
+                almacen.guardarRegistro(ESTADO_PENDIENTE, respuesta.mensaje)
+                ResultadoRegistro.Pendiente(respuesta.mensaje)
+            }
+        }
+        is RespuestaApi.ErrorNegocio -> {
+            // El servidor ya no tiene el registro (lo borraron): el teléfono vuelve a "sin licencia".
+            if (respuesta.codigo == "REGISTRO_NO_ENCONTRADO") almacen.guardarRegistro(null)
+            registro.advertencia("Registro rechazado: ${respuesta.codigo}")
+            if (respuesta.codigo == "REGISTRO_NO_ENCONTRADO") ResultadoRegistro.SinRegistro
+            else ResultadoRegistro.Rechazada(respuesta.codigo, respuesta.mensaje)
+        }
+        is RespuestaApi.FallaRed -> {
+            registro.advertencia("registro sin conexión: ${respuesta.detalle}")
+            ResultadoRegistro.SinConexion(MENSAJE_SIN_CONEXION)
+        }
+        RespuestaApi.Ok, is RespuestaApi.Token, is RespuestaApi.Usuarios -> ResultadoRegistro.SinConexion(MENSAJE_SIN_CONEXION)
+    }
+
+    /** Para un token cuya clave el teléfono todavía no conoce (migración, registro): se toma del token verificado. */
+    private fun aceptarTokenConSuClave(token: String, operacion: String, versionUsuarios: String?): ResultadoLicencia {
+        val clave = (verificador.verificar(token) as? ResultadoVerificacion.Valido)?.payload?.licencia
+            ?.takeIf { FORMATO_CLAVE.matches(it) }
+        if (clave == null) {
+            registro.advertencia("$operacion: token rechazado")
+            return ResultadoLicencia.TokenNoValido(MENSAJE_TOKEN_NO_VALIDO)
+        }
+        return aceptarToken(clave, token, operacion, versionUsuarios)
+    }
+
+    private fun nombreLimpio(nombreDispositivo: String?): String? =
+        nombreDispositivo?.trim()?.take(MAXIMO_NOMBRE_DISPOSITIVO)?.takeIf { it.isNotEmpty() }
 
     @Synchronized
     fun validar(): ResultadoLicencia {
         val clave = almacen.leer().clave ?: return ResultadoLicencia.SinLicencia
 
         return when (val respuesta = cliente.validar(clave, deviceHash(), versionApp.take(MAXIMO_VERSION))) {
-            is RespuestaApi.Token -> aceptarToken(clave, respuesta.token, "validación")
+            is RespuestaApi.Token -> aceptarToken(clave, respuesta.token, "validación", respuesta.versionUsuarios)
             is RespuestaApi.ErrorNegocio -> {
                 val motivo = MotivoRestriccion.desdeCodigoServidor(respuesta.codigo)
                 if (motivo != null) {
@@ -136,7 +218,7 @@ class RepositorioLicencia(
             }
             is RespuestaApi.FallaRed -> sinConexion("validación", respuesta)
             // Respuestas que no corresponden a este endpoint.
-            RespuestaApi.Ok, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -153,7 +235,7 @@ class RepositorioLicencia(
                 else -> ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("desactivación", respuesta)
-            is RespuestaApi.Token, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            is RespuestaApi.Token, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -224,23 +306,14 @@ class RepositorioLicencia(
     /** Lo guardado (clave, última validación...), para mostrar en la pantalla de licencia. */
     fun datosGuardados(): DatosLicenciaGuardados = almacen.leer()
 
+    /** Huella de usuarios ya aplicada en el teléfono (tras sincronizar con éxito). */
+    fun guardarVersionUsuarios(version: String?) = almacen.guardarVersionUsuarios(version)
+
     /** `device_hash` de este teléfono. */
     fun deviceHashActual(): String = deviceHash()
 
-    /**
-     * `true` si hay licencia guardada y pasaron más de 12 horas desde la última validación exitosa
-     * (o el reloj quedó antes de esa validación).
-     */
-    fun necesitaValidar(): Boolean {
-        val datos = almacen.leer()
-        if (datos.clave == null) return false
-        val ultima = datos.ultimaValidacionMs ?: return true
-        val ahora = reloj()
-        return ahora - ultima >= INTERVALO_VALIDACION_MS || ahora < ultima
-    }
-
     /** Verifica el token recibido (firma, clave, dispositivo y reloj) y solo entonces lo guarda. */
-    private fun aceptarToken(clave: String, token: String, operacion: String): ResultadoLicencia {
+    private fun aceptarToken(clave: String, token: String, operacion: String, versionUsuarios: String? = null): ResultadoLicencia {
         val ahora = reloj()
         val verificacion = verificador.verificar(token)
         val payload = (verificacion as? ResultadoVerificacion.Valido)?.payload
@@ -263,7 +336,7 @@ class RepositorioLicencia(
 
         almacen.guardarValidacionExitosa(clave, token, ahora)
         registro.info("$operacion exitosa (${enmascararClave(clave)}).")
-        return ResultadoLicencia.Exito(estado)
+        return ResultadoLicencia.Exito(estado, versionUsuarios)
     }
 
     private fun olvidarLicencia(clave: String): ResultadoLicencia {
@@ -278,11 +351,12 @@ class RepositorioLicencia(
     }
 
     companion object {
-        const val INTERVALO_VALIDACION_MS = 12L * 60 * 60 * 1000
-
         private val FORMATO_CLAVE = Regex("[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}")
         private const val MAXIMO_NOMBRE_DISPOSITIVO = 100
         private const val MAXIMO_VERSION = 50
+        const val ESTADO_PENDIENTE = "pendiente"
+        const val ESTADO_RECHAZADO = "rechazado"
+        private const val ESTADO_ASIGNADO = "asignado"
 
         private const val MENSAJE_SIN_CONEXION =
             "No se pudo conectar con el servidor de licencias. Revisa tu conexión a internet e intenta de nuevo."

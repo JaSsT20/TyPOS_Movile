@@ -127,6 +127,16 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
             return if (alfanumerica.length == 12) alfanumerica.chunked(4).joinToString("-") else null
         }
 
+        /** Mensaje para avisar por WhatsApp al proveedor que un negocio se registró y espera su licencia. */
+        fun mensajeWhatsAppRegistro(negocio: String?, telefono: String?, contacto: String?, identificador: String): String =
+            buildString {
+                append("Hola, registré mi negocio en TyPOS Móvil y quiero activar mi licencia.")
+                negocio?.takeIf { it.isNotBlank() }?.let { append("\nNegocio: ").append(it) }
+                telefono?.takeIf { it.isNotBlank() }?.let { append("\nTeléfono: ").append(it) }
+                contacto?.takeIf { it.isNotBlank() }?.let { append("\nContacto: ").append(it) }
+                append("\nID del teléfono: ").append(identificador)
+            }
+
         /** Mensaje para el usuario de una operación de licencia. */
         fun mensajeDe(resultado: ResultadoLicencia, mensajeExito: String): String = when (resultado) {
             is ResultadoLicencia.Exito -> mensajeExito

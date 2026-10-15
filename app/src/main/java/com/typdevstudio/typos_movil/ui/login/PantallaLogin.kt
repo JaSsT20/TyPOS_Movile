@@ -86,6 +86,12 @@ fun PantallaLogin(
         }
     }
 
+    // Tras registrar el negocio: avisar por WhatsApp al proveedor y entrar (fuera de la tarjeta de bienvenida, que
+    // deja de mostrarse en cuanto existe el administrador).
+    if (bienvenida.registroEnviado) {
+        DialogoRegistroEnviado(estado = bienvenida, viewModel = viewModel)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

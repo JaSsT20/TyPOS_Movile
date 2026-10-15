@@ -33,7 +33,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Al volver a la app: valida la licencia en segundo plano si pasaron más de 12 horas (nunca bloquea).
-        LicenciaGuard.validarSiHaceFalta()
+        // Con la app a la vista: se mantiene al día con la API (enseguida y luego cada 5 minutos, sin bloquear nada).
+        LicenciaGuard.alAbrirApp()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        LicenciaGuard.alCerrarApp()
     }
 }

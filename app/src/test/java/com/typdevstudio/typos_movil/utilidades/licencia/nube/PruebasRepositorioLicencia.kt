@@ -20,6 +20,7 @@ class PruebasRepositorioLicencia {
         var clavePrivada: PrivateKey = FabricaTokens.parLlaves.private
         var deviceHashEnToken: String? = null
         var licenciaEnToken: String? = null
+        var versionUsuarios: String? = null
         val rutas = mutableListOf<String>()
 
         override fun enviar(metodo: String, url: String, cuerpoJson: String?): RespuestaHttp {
@@ -37,7 +38,8 @@ class PruebasRepositorioLicencia {
                 ),
                 clavePrivada,
             )
-            return RespuestaHttp(200, """{"ok":true,"token":"$token","valido_hasta":"x"}""")
+            val version = versionUsuarios?.let { ""","version_usuarios":"$it"""" } ?: ""
+            return RespuestaHttp(200, """{"ok":true,"token":"$token","valido_hasta":"x"$version}""")
         }
     }
 
@@ -239,6 +241,139 @@ class PruebasRepositorioLicencia {
         assertTrue(api.rutas.isEmpty())
     }
 
+    // ---------------- Versión de usuarios ----------------
+
+    @Test
+    fun laValidacionTraeLaVersionDeUsuariosDelServidor() {
+        activar()
+        api.versionUsuarios = "a1b2c3d4e5f60718"
+
+        val resultado = repositorio.validar()
+
+        assertEquals("a1b2c3d4e5f60718", (resultado as ResultadoLicencia.Exito).versionUsuarios)
+        repositorio.guardarVersionUsuarios(resultado.versionUsuarios)
+        assertEquals("a1b2c3d4e5f60718", almacen.leer().versionUsuarios)
+    }
+
+    // ---------------- Registro de un negocio nuevo ----------------
+
+    private val datosRegistro = DatosRegistro(nombreNegocio = "Colmado Juan", telefono = "809-555-0101", contactoNombre = "Juan")
+
+    private fun respuestaRegistro(estado: String, mensaje: String = "Mensaje de $estado.", token: String? = null): (String) -> RespuestaHttp = {
+        val campoToken = token?.let { ""","token":"$it","version_usuarios":"v1"""" } ?: ""
+        RespuestaHttp(200, """{"ok":true,"estado":"$estado","mensaje":"$mensaje"$campoToken}""")
+    }
+
+    private fun tokenDeLaLicencia(): String = FabricaTokens.firmar(
+        FabricaTokens.json(
+            licencia = clave, deviceHash = FabricaTokens.DEVICE_HASH,
+            emitido = ahora.toString(), validoHasta = ahora.plus(Duration.ofDays(15)).toString(),
+        )
+    )
+
+    @Test
+    fun registrarDejaElRegistroPendienteSinLicencia() {
+        api.siguiente = respuestaRegistro("pendiente")
+
+        val resultado = repositorio.registrar(datosRegistro, "Caja 1")
+
+        assertTrue(resultado.toString(), resultado is ResultadoRegistro.Pendiente)
+        assertEquals(listOf("registro"), api.rutas)
+        assertEquals("pendiente", almacen.leer().estadoRegistro)
+        assertNull(almacen.leer().clave)
+        assertEquals(EstadoLicencia.SinActivar, repositorio.estadoActual())
+    }
+
+    @Test
+    fun registrarEnviaLosDatosDelNegocio() {
+        var cuerpo: JSONObject? = null
+        val transporte = TransporteHttp { _, _, json ->
+            cuerpo = JSONObject(json!!)
+            RespuestaHttp(200, """{"ok":true,"estado":"pendiente","mensaje":"x"}""")
+        }
+        ClienteApiLicencias("http://api/api/v1", transporte)
+            .registrar(datosRegistro.copy(rnc = "101-1"), "hash-1234", "Caja 1", "1.2.3")
+
+        assertEquals("Colmado Juan", cuerpo!!.getString("nombre_negocio"))
+        assertEquals("809-555-0101", cuerpo!!.getString("telefono"))
+        assertEquals("101-1", cuerpo!!.getString("rnc"))
+        assertEquals("Juan", cuerpo!!.getString("contacto_nombre"))
+        assertTrue(cuerpo!!.isNull("email"))
+        assertEquals("hash-1234", cuerpo!!.getString("device_hash"))
+    }
+
+    @Test
+    fun cuandoElProveedorAsignaLaLicenciaElTelefonoQuedaActivado() {
+        almacen.guardarRegistro("pendiente")
+        api.siguiente = respuestaRegistro("asignado", token = tokenDeLaLicencia())
+
+        val resultado = repositorio.consultarRegistro("Caja 1")
+
+        val licencia = (resultado as ResultadoRegistro.Asignado).licencia
+        assertTrue(licencia.toString(), licencia is ResultadoLicencia.Exito)
+        assertEquals("v1", (licencia as ResultadoLicencia.Exito).versionUsuarios)
+        assertEquals(listOf("estado"), api.rutas)
+        assertEquals(clave, almacen.leer().clave)
+        assertNull(almacen.leer().estadoRegistro)
+        assertTrue(repositorio.estadoActual() is EstadoLicencia.Activa)
+    }
+
+    @Test
+    fun unTokenDeOtraLlaveNoActivaElRegistro() {
+        almacen.guardarRegistro("pendiente")
+        val ajeno = FabricaTokens.firmar(FabricaTokens.json(licencia = clave), FabricaTokens.generarParLlaves().private)
+        api.siguiente = respuestaRegistro("asignado", token = ajeno)
+
+        val resultado = repositorio.consultarRegistro(null)
+
+        assertTrue((resultado as ResultadoRegistro.Asignado).licencia is ResultadoLicencia.TokenNoValido)
+        assertNull(almacen.leer().clave)
+        assertEquals("pendiente", almacen.leer().estadoRegistro)
+    }
+
+    @Test
+    fun registroRechazadoGuardaElMotivo() {
+        almacen.guardarRegistro("pendiente")
+        api.siguiente = respuestaRegistro("rechazado", mensaje = "Su registro no fue aprobado. Datos incompletos.")
+
+        assertTrue(repositorio.consultarRegistro(null) is ResultadoRegistro.Rechazado)
+        assertEquals("rechazado", almacen.leer().estadoRegistro)
+        assertEquals("Su registro no fue aprobado. Datos incompletos.", almacen.leer().mensajeRegistro)
+    }
+
+    @Test
+    fun sinRegistroGuardadoNoSeConsultaLaApi() {
+        assertEquals(ResultadoRegistro.SinRegistro, repositorio.consultarRegistro(null))
+        assertTrue(api.rutas.isEmpty())
+    }
+
+    @Test
+    fun siElServidorYaNoTieneElRegistroSeOlvida() {
+        almacen.guardarRegistro("pendiente")
+        api.siguiente = errorNegocio("REGISTRO_NO_ENCONTRADO", 404)
+
+        assertEquals(ResultadoRegistro.SinRegistro, repositorio.consultarRegistro(null))
+        assertNull(almacen.leer().estadoRegistro)
+    }
+
+    @Test
+    fun sinRedElRegistroSigueIgual() {
+        almacen.guardarRegistro("pendiente")
+        api.siguiente = { throw java.net.UnknownHostException("sin red") }
+
+        assertTrue(repositorio.consultarRegistro(null) is ResultadoRegistro.SinConexion)
+        assertEquals("pendiente", almacen.leer().estadoRegistro)
+    }
+
+    @Test
+    fun respuestasDeRegistroMalFormadasNoCastigan() {
+        val cliente = ClienteApiLicencias("http://api/api/v1", api)
+        api.siguiente = { RespuestaHttp(200, """{"ok":true,"estado":"otro","mensaje":"x"}""") }
+        assertTrue(cliente.estadoRegistro("h", null, "1") is RespuestaApi.FallaRed)
+        api.siguiente = { RespuestaHttp(200, """{"ok":true,"estado":"asignado","mensaje":"x"}""") }
+        assertTrue(cliente.estadoRegistro("h", null, "1") is RespuestaApi.FallaRed)
+    }
+
     @Test
     fun unTokenInvalidoEnLaValidacionNoReemplazaElBueno() {
         activar()
@@ -272,19 +407,6 @@ class PruebasRepositorioLicencia {
         api.siguiente = { throw java.net.ConnectException("sin red") }
         assertTrue(repositorio.desactivar() is ResultadoLicencia.SinConexion)
         assertEquals(clave, almacen.leer().clave)
-    }
-
-    @Test
-    fun necesitaValidarCadaDoceHoras() {
-        assertEquals(false, repositorio.necesitaValidar()) // sin licencia
-        activar()
-        assertEquals(false, repositorio.necesitaValidar())
-        ahora = ahora.plus(Duration.ofHours(11))
-        assertEquals(false, repositorio.necesitaValidar())
-        ahora = ahora.plus(Duration.ofHours(1))
-        assertEquals(true, repositorio.necesitaValidar())
-        ahora = Instant.parse("2026-10-13T11:00:00Z") // reloj antes de la última validación
-        assertEquals(true, repositorio.necesitaValidar())
     }
 
     @Test

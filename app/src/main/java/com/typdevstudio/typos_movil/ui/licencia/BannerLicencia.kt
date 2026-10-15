@@ -1,5 +1,6 @@
 package com.typdevstudio.typos_movil.ui.licencia
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Warning
@@ -36,6 +38,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.typdevstudio.typos_movil.BuildConfig
+import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
+import com.typdevstudio.typos_movil.datos.local.GestorSesion
 import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.CelesteInformacion
 import com.typdevstudio.typos_movil.ui.theme.RojoError
@@ -43,7 +48,10 @@ import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import com.typdevstudio.typos_movil.utilidades.licencia.SituacionLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.EstadoLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoRegistro
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Aviso de licencia para las pantallas principales. No se muestra si la licencia está activa y al día. */
 private data class Aviso(
@@ -53,11 +61,24 @@ private data class Aviso(
     val icono: ImageVector,
     val textoBotonLicencia: String,
     val mostrarValidar: Boolean,
+    /** Registro del negocio en revisión: revisar si ya llegó la licencia y avisar por WhatsApp al proveedor. */
+    val esRegistroPendiente: Boolean = false,
 )
 
 private fun avisoPara(situacion: SituacionLicencia): Aviso? {
     if (!situacion.verificada) return null
     val tieneClave = situacion.clave != null
+    if (situacion.registroPendiente) {
+        return Aviso(
+            titulo = "Registro en revisión",
+            texto = situacion.mensajeRestriccion(),
+            color = CelesteInformacion,
+            icono = Icons.Filled.HourglassTop,
+            textoBotonLicencia = "Ver licencia",
+            mostrarValidar = false,
+            esRegistroPendiente = true,
+        )
+    }
     if (!situacion.permiteEmitir) {
         return Aviso(
             titulo = "Modo solo consulta",
@@ -157,10 +178,56 @@ fun BannerLicencia(
                         }
                     }
                 }
-                TextButton(onClick = alAbrirLicencia) {
-                    Text(aviso.textoBotonLicencia, color = aviso.color, fontWeight = FontWeight.Bold)
+                if (aviso.esRegistroPendiente) {
+                    TextButton(
+                        enabled = !estaValidando,
+                        onClick = {
+                            estaValidando = true
+                            alcance.launch {
+                                val resultado = LicenciaGuard.consultarRegistro()
+                                estaValidando = false
+                                Toast.makeText(contexto, mensajeDeRegistro(resultado), Toast.LENGTH_LONG).show()
+                            }
+                        },
+                    ) {
+                        if (estaValidando) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = aviso.color)
+                        } else {
+                            Text("Revisar ahora", color = aviso.color, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    TextButton(onClick = { alcance.launch { avisarRegistroPorWhatsApp(contexto) } }) {
+                        Text("Avisar por WhatsApp", color = aviso.color, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    TextButton(onClick = alAbrirLicencia) {
+                        Text(aviso.textoBotonLicencia, color = aviso.color, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
     }
+}
+
+private fun mensajeDeRegistro(resultado: ResultadoRegistro): String = when (resultado) {
+    is ResultadoRegistro.Asignado ->
+        if (resultado.licencia is ResultadoLicencia.Exito) "¡Tu licencia está lista! Ya puedes vender."
+        else LicenciaViewModel.mensajeDe(resultado.licencia, "")
+    is ResultadoRegistro.Pendiente -> "Tu registro sigue en revisión. Te avisaremos cuando tu licencia esté lista."
+    is ResultadoRegistro.Rechazado -> resultado.mensaje
+    is ResultadoRegistro.Rechazada -> resultado.mensaje
+    is ResultadoRegistro.SinConexion -> resultado.mensaje
+    ResultadoRegistro.SinRegistro -> "Este teléfono no tiene un registro pendiente."
+}
+
+/** Abre WhatsApp con el aviso al proveedor (datos del negocio guardados en la configuración e ID del teléfono). */
+private suspend fun avisarRegistroPorWhatsApp(contexto: Context) {
+    val negocio = withContext(Dispatchers.IO) {
+        AppBaseDatos.obtenerBaseDatos(contexto).configuracionNegocioDao().obtenerConfiguracionDirecta()
+    }
+    val mensaje = LicenciaViewModel.mensajeWhatsAppRegistro(
+        negocio?.nombreNegocio, negocio?.telefono, GestorSesion.usuarioActivo.value?.nombreCompleto,
+        LicenciaGuard.identificadorDispositivo(),
+    )
+    abrirWhatsApp(contexto, BuildConfig.WHATSAPP_REGISTROS, mensaje)
 }

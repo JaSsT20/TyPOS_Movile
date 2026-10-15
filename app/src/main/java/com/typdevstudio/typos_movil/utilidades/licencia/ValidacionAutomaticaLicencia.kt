@@ -11,17 +11,36 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
 import java.util.concurrent.TimeUnit
 
-/** Cuándo vale la pena intentar una validación automática (pura, para probarla). */
-object PoliticaValidacionAutomatica {
+/** Qué hace un ciclo de sincronización según el estado del teléfono. */
+enum class AccionSincronizacion { VALIDAR, CONSULTAR_REGISTRO, MIGRAR, NADA }
 
-    /** Evita repetir intentos fallidos cada vez que se abre la app sin internet. */
-    const val MINIMO_ENTRE_INTENTOS_MS = 15L * 60 * 1000
+/** Cómo terminó un ciclo: [SIN_CONEXION] programa un reintento para cuando vuelva la red. */
+enum class ResultadoSincronizacion { HECHA, SIN_CONEXION, OMITIDA }
 
-    fun debeIntentar(necesitaValidar: Boolean, ultimoIntentoMs: Long?, ahoraMs: Long): Boolean =
-        necesitaValidar && (ultimoIntentoMs == null || ahoraMs - ultimoIntentoMs >= MINIMO_ENTRE_INTENTOS_MS || ahoraMs < ultimoIntentoMs)
+/** Reglas de la sincronización con la API (puras, para probarlas). */
+object PoliticaSincronizacion {
+
+    /** Con la app abierta: un cambio hecho en el portal llega en 5 minutos o menos. */
+    const val INTERVALO_CON_APP_ABIERTA_MS = 5L * 60 * 1000
+
+    /** En segundo plano (WorkManager). Es el mínimo que permite Android para un trabajo periódico. */
+    const val INTERVALO_EN_SEGUNDO_PLANO_MIN = 15L
+
+    /** Evita ciclos seguidos (abrir y cerrar la app, recuperar la red varias veces...). */
+    const val MINIMO_ENTRE_CICLOS_MS = 30L * 1000
+
+    fun debeIntentar(ultimoCicloMs: Long?, ahoraMs: Long): Boolean =
+        ultimoCicloMs == null || ahoraMs - ultimoCicloMs >= MINIMO_ENTRE_CICLOS_MS || ahoraMs < ultimoCicloMs
+
+    /** Con licencia se valida; si no, se consulta el registro pendiente o se migra la licencia antigua. */
+    fun accion(tieneLicencia: Boolean, registroPendiente: Boolean, puedeMigrar: Boolean): AccionSincronizacion = when {
+        tieneLicencia -> AccionSincronizacion.VALIDAR
+        registroPendiente -> AccionSincronizacion.CONSULTAR_REGISTRO
+        puedeMigrar -> AccionSincronizacion.MIGRAR
+        else -> AccionSincronizacion.NADA
+    }
 }
 
 /** Cuándo reintentar pasar la licencia antigua a la nube después de que el servidor la rechazó (pura). */
@@ -51,21 +70,16 @@ object PoliticaMigracionAutomatica {
 }
 
 /**
- * Valida la licencia en segundo plano si pasaron más de 12 horas desde la última validación exitosa, o pasa la
- * licencia antigua a la nube si el teléfono todavía no tiene la nueva.
+ * Sincroniza en segundo plano (cada 15 minutos, con red): valida la licencia, consulta el registro pendiente o pasa
+ * la licencia antigua a la nube.
  * Las fallas de red piden reintento (con espera creciente) y nunca cambian el estado guardado.
  */
 class TrabajadorValidacionLicencia(contexto: Context, parametros: WorkerParameters) : CoroutineWorker(contexto, parametros) {
 
     override suspend fun doWork(): Result {
         LicenciaGuard.inicializar(applicationContext)
-        val resultado = when {
-            LicenciaGuard.debeMigrar() -> LicenciaGuard.migrarAhora()
-            LicenciaGuard.necesitaValidar() -> LicenciaGuard.validarAhora()
-            else -> return Result.success()
-        }
-        return when (resultado) {
-            is ResultadoLicencia.SinConexion -> if (runAttemptCount < MAXIMO_REINTENTOS) Result.retry() else Result.success()
+        return when (LicenciaGuard.sincronizarAhora()) {
+            ResultadoSincronizacion.SIN_CONEXION -> if (runAttemptCount < MAXIMO_REINTENTOS) Result.retry() else Result.success()
             else -> Result.success()
         }
     }
@@ -75,7 +89,7 @@ class TrabajadorValidacionLicencia(contexto: Context, parametros: WorkerParamete
     }
 }
 
-/** Programa las validaciones automáticas con WorkManager (solo con red conectada). */
+/** Programa la sincronización en segundo plano con WorkManager (solo con red conectada). */
 object PlanificadorValidacionLicencia {
 
     private const val TRABAJO_PERIODICO = "licencia_validacion_periodica"
@@ -84,16 +98,16 @@ object PlanificadorValidacionLicencia {
     private val conRed = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
     /**
-     * Cada 6 horas revisa si hace falta validar (umbral de 12 horas). Así, aun con la app cerrada,
-     * un bloqueo del servidor o una renovación llegan al teléfono en menos de un día.
+     * Cada 15 minutos con red, aun con la app cerrada. `UPDATE` reemplaza el intervalo de versiones anteriores
+     * (antes era cada 6 horas) sin duplicar el trabajo.
      */
     fun programarPeriodica(contexto: Context) {
-        val trabajo = PeriodicWorkRequestBuilder<TrabajadorValidacionLicencia>(6, TimeUnit.HOURS)
+        val trabajo = PeriodicWorkRequestBuilder<TrabajadorValidacionLicencia>(PoliticaSincronizacion.INTERVALO_EN_SEGUNDO_PLANO_MIN, TimeUnit.MINUTES)
             .setConstraints(conRed)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(contexto)
-            .enqueueUniquePeriodicWork(TRABAJO_PERIODICO, ExistingPeriodicWorkPolicy.KEEP, trabajo)
+            .enqueueUniquePeriodicWork(TRABAJO_PERIODICO, ExistingPeriodicWorkPolicy.UPDATE, trabajo)
     }
 
     /** Una validación que espera a que vuelva la conexión (se usa cuando un intento falló por red). */

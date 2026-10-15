@@ -101,7 +101,7 @@ private fun llamar(contexto: Context, telefono: String) {
 }
 
 /** Abre el chat de WhatsApp con ese número y el mensaje escrito (wa.me abre la app o, si no está, el navegador). */
-private fun abrirWhatsApp(contexto: Context, telefono: String, mensaje: String) {
+internal fun abrirWhatsApp(contexto: Context, telefono: String, mensaje: String) {
     val numero = telefono.filter { it.isDigit() }
     val uri = Uri.parse("https://wa.me/$numero?text=${Uri.encode(mensaje)}")
     try {

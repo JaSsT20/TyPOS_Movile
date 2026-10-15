@@ -13,6 +13,12 @@ data class DatosLicenciaGuardados(
     val ultimaFechaVistaMs: Long?,
     /** Mensaje de la API que acompañó al bloqueo, para mostrarlo tal cual al usuario. */
     val mensajeBloqueoServidor: String? = null,
+    /** Registro del negocio esperando licencia: `pendiente` o `rechazado` (`null` si no hay registro). */
+    val estadoRegistro: String? = null,
+    /** Mensaje del servidor sobre el registro (el motivo, si lo rechazaron). */
+    val mensajeRegistro: String? = null,
+    /** Huella de los usuarios de la licencia que ya se aplicó en el teléfono. */
+    val versionUsuarios: String? = null,
 )
 
 /**
@@ -31,6 +37,9 @@ class AlmacenLicencia(private val archivo: ArchivoSeguro) {
         },
         ultimaFechaVistaMs = archivo.leer(ULTIMA_FECHA_VISTA)?.toLongOrNull(),
         mensajeBloqueoServidor = archivo.leer(MENSAJE_BLOQUEO),
+        estadoRegistro = archivo.leer(ESTADO_REGISTRO),
+        mensajeRegistro = archivo.leer(MENSAJE_REGISTRO),
+        versionUsuarios = archivo.leer(VERSION_USUARIOS),
     )
 
     /**
@@ -47,6 +56,9 @@ class AlmacenLicencia(private val archivo: ArchivoSeguro) {
                 BLOQUEO_SERVIDOR to null,
                 MENSAJE_BLOQUEO to null,
                 ULTIMA_FECHA_VISTA to ahoraMs.toString(),
+                // Con licencia, el registro que esperaba ya no aplica.
+                ESTADO_REGISTRO to null,
+                MENSAJE_REGISTRO to null,
             )
         )
     }
@@ -70,7 +82,24 @@ class AlmacenLicencia(private val archivo: ArchivoSeguro) {
      */
     @Synchronized
     fun borrarLicencia() {
-        archivo.escribir(mapOf(CLAVE to null, TOKEN to null, ULTIMA_VALIDACION to null, BLOQUEO_SERVIDOR to null, MENSAJE_BLOQUEO to null))
+        archivo.escribir(
+            mapOf(
+                CLAVE to null, TOKEN to null, ULTIMA_VALIDACION to null, BLOQUEO_SERVIDOR to null, MENSAJE_BLOQUEO to null,
+                VERSION_USUARIOS to null,
+            )
+        )
+    }
+
+    /** Registro del negocio: `pendiente` o `rechazado` con su mensaje; `null` lo borra. */
+    @Synchronized
+    fun guardarRegistro(estado: String?, mensaje: String? = null) {
+        archivo.escribir(mapOf(ESTADO_REGISTRO to estado, MENSAJE_REGISTRO to mensaje))
+    }
+
+    /** Huella de usuarios ya aplicada (tras sincronizar con éxito). */
+    @Synchronized
+    fun guardarVersionUsuarios(version: String?) {
+        archivo.escribir(mapOf(VERSION_USUARIOS to version))
     }
 
     @Synchronized
@@ -89,6 +118,9 @@ class AlmacenLicencia(private val archivo: ArchivoSeguro) {
         private const val MENSAJE_BLOQUEO = "mensaje_bloqueo"
         private const val ULTIMA_FECHA_VISTA = "ultima_fecha_vista"
         private const val DEVICE_HASH = "device_hash"
+        private const val ESTADO_REGISTRO = "estado_registro"
+        private const val MENSAJE_REGISTRO = "mensaje_registro"
+        private const val VERSION_USUARIOS = "version_usuarios"
 
         fun crear(contexto: Context) = AlmacenLicencia(PreferenciasCifradas(contexto))
     }

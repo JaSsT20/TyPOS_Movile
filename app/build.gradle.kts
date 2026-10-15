@@ -24,6 +24,8 @@ android {
         // Contacto que aparece en los avisos de vencimiento de la licencia (5 días antes y el mismo día).
         buildConfigField("String", "CONTACTO_LICENCIA_NOMBRE", "\"T&P DevStudio\"")
         buildConfigField("String", "CONTACTO_LICENCIA_TELEFONO", "\"+1 (849) 359-4927\"")
+        // WhatsApp al que el negocio que se registra avisa para que le activen la licencia.
+        buildConfigField("String", "WHATSAPP_REGISTROS", "\"+1 (829) 285-9052\"")
     }
 
     buildTypes {

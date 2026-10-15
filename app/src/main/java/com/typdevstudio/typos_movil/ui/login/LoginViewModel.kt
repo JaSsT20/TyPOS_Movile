@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
+import com.typdevstudio.typos_movil.datos.local.entidades.ConfiguracionNegocioEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.UsuarioEntidad
 import com.typdevstudio.typos_movil.datos.repositorio.ResultadoAutenticacion
 import com.typdevstudio.typos_movil.datos.repositorio.ResultadoRegistroUsuario
@@ -13,7 +14,9 @@ import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
 import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
 import com.typdevstudio.typos_movil.utilidades.licencia.LicenciaGuard
 import com.typdevstudio.typos_movil.utilidades.licencia.SincronizacionUsuarios
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.DatosRegistro
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoRegistro
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -36,11 +39,21 @@ data class LoginUiState(
 )
 
 /** Qué formulario de bienvenida está abierto cuando el teléfono no tiene usuarios. */
-enum class FormularioBienvenida { CREAR_ADMINISTRADOR, ACTIVAR_LICENCIA }
+enum class FormularioBienvenida { REGISTRAR_NEGOCIO, ACTIVAR_LICENCIA }
 
-/** Primer uso del teléfono (sin usuarios): crear el administrador o traer los usuarios de una licencia. */
+/** Primer uso del teléfono (sin usuarios): registrar el negocio o traer los usuarios de una licencia. */
 data class BienvenidaUiState(
     val formulario: FormularioBienvenida? = null,
+    // Registro del negocio (los mismos datos que salen en su factura) y su contacto.
+    val nombreNegocio: String = "",
+    val telefonoNegocio: String = "",
+    val emailNegocio: String = "",
+    val rncNegocio: String = "",
+    val direccionNegocio: String = "",
+    val sloganNegocio: String = "",
+    val contactoNombre: String = "",
+    val contactoTelefono: String = "",
+    // Administrador del negocio.
     val nombreUsuario: String = "",
     val nombreCompleto: String = "",
     val clave: String = "",
@@ -51,6 +64,9 @@ data class BienvenidaUiState(
     val error: String? = null,
     /** Aviso tras activar la licencia (por ejemplo, que todavía no tiene usuarios). */
     val aviso: String? = null,
+    /** El registro se envió: se muestra el aviso con "Avisar por WhatsApp" y "Entrar". */
+    val registroEnviado: Boolean = false,
+    val mensajeRegistro: String? = null,
 )
 
 class LoginViewModel(application: Application) : AndroidViewModel(application) {
@@ -226,13 +242,20 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun editarBienvenida(cambio: (BienvenidaUiState) -> BienvenidaUiState) =
         _bienvenida.update { cambio(it).copy(error = null) }
 
-    /** Crea el primer administrador y entra con él. Con licencia en la nube, se crea en la licencia. */
-    fun crearAdministrador() {
+    /**
+     * Registra el negocio para que el proveedor le asigne una licencia (requiere internet) y crea su administrador
+     * en el teléfono. Mientras el proveedor no asigna la licencia, la app queda en modo consulta; cuando la asigna,
+     * el teléfono la recibe solo y el administrador sube a la licencia.
+     */
+    fun registrarNegocio() {
         val f = _bienvenida.value
         val error = when {
+            f.nombreNegocio.isBlank() -> "Escribe el nombre de tu negocio."
+            f.telefonoNegocio.isBlank() -> "Escribe el teléfono del negocio."
+            f.emailNegocio.isNotBlank() && !FORMATO_CORREO.matches(f.emailNegocio.trim()) -> "El correo no es válido."
             !SincronizacionUsuarios.nombreValido(f.nombreUsuario) ->
                 "El usuario debe tener de 1 a 50 letras, números o . _ @ - (sin espacios)."
-            f.nombreCompleto.isBlank() -> "Ingresa tu nombre completo."
+            f.nombreCompleto.isBlank() -> "Escribe tu nombre completo."
             f.clave.trim().length < 4 -> "La contraseña debe tener al menos 4 caracteres."
             f.clave != f.confirmarClave -> "Las contraseñas no coinciden."
             else -> null
@@ -243,24 +266,99 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         }
         _bienvenida.update { it.copy(estaGuardando = true) }
         viewModelScope.launch {
-            val resultado = repositorio.registrarNuevoUsuario(f.nombreUsuario, f.nombreCompleto, f.clave, "ADMINISTRADOR")
-            if (resultado is ResultadoRegistroUsuario.Error) {
-                _bienvenida.update { it.copy(estaGuardando = false, error = resultado.mensaje) }
-                return@launch
+            val datos = DatosRegistro(
+                nombreNegocio = f.nombreNegocio.trim(),
+                telefono = f.telefonoNegocio.trim(),
+                email = f.emailNegocio.trim().ifBlank { null },
+                rnc = f.rncNegocio.trim().ifBlank { null },
+                direccion = f.direccionNegocio.trim().ifBlank { null },
+                slogan = f.sloganNegocio.trim().ifBlank { null },
+                contactoNombre = f.contactoNombre.trim().ifBlank { f.nombreCompleto.trim() },
+                contactoTelefono = f.contactoTelefono.trim().ifBlank { null },
+                adminUsuario = SincronizacionUsuarios.normalizarNombre(f.nombreUsuario),
+                adminNombre = f.nombreCompleto.trim(),
+            )
+            val falla = when (val resultado = LicenciaGuard.registrar(datos)) {
+                is ResultadoRegistro.Pendiente -> {
+                    guardarDatosDelNegocio(datos)
+                    crearAdministradorLocal(f) ?: run {
+                        _bienvenida.update {
+                            it.copy(estaGuardando = false, formulario = null, registroEnviado = true, mensajeRegistro = resultado.mensaje)
+                        }
+                        null
+                    }
+                }
+                // El teléfono ya tenía licencia asignada (por ejemplo, tras reinstalar): queda activado de una vez.
+                is ResultadoRegistro.Asignado -> when (val licencia = resultado.licencia) {
+                    is ResultadoLicencia.Exito -> {
+                        guardarDatosDelNegocio(datos)
+                        if (repositorio.contarUsuarios() > 0) {
+                            _bienvenida.value = BienvenidaUiState()
+                            _uiState.update { it.copy(mensajeExito = "¡Tu licencia ya estaba activa! Inicia sesión con tu usuario.") }
+                            null
+                        } else {
+                            crearAdministradorLocal(f) ?: run { entrarComo(f.nombreUsuario, f.clave); null }
+                        }
+                    }
+                    else -> LicenciaViewModel.mensajeDe(licencia, "")
+                }
+                is ResultadoRegistro.Rechazado -> resultado.mensaje
+                is ResultadoRegistro.Rechazada -> resultado.mensaje
+                is ResultadoRegistro.SinConexion -> "Para registrarte necesitas internet. ${resultado.mensaje}"
+                ResultadoRegistro.SinRegistro -> "No se pudo enviar el registro. Intenta de nuevo."
             }
-            when (val acceso = repositorio.autenticar(f.nombreUsuario, f.clave)) {
-                is ResultadoAutenticacion.Exito -> {
-                    _bienvenida.value = BienvenidaUiState()
-                    GestorSesion.iniciarSesion(acceso.usuario)
-                    _uiState.update { it.copy(loginExitoso = true) }
-                }
-                is ResultadoAutenticacion.Error -> {
-                    // No debería pasar: se deja en el inicio de sesión normal con el usuario escrito.
-                    _bienvenida.value = BienvenidaUiState()
-                    _uiState.update { it.copy(usuario = f.nombreUsuario.trim().lowercase(), mensajeErrorGeneral = acceso.mensaje) }
-                }
+            if (falla != null) _bienvenida.update { it.copy(estaGuardando = false, error = falla) }
+        }
+    }
+
+    /** Tras el aviso de "registro enviado", entra con el administrador que se acaba de crear. */
+    fun entrarTrasRegistro() {
+        val f = _bienvenida.value
+        viewModelScope.launch { entrarComo(f.nombreUsuario, f.clave) }
+    }
+
+    /** Mensaje para avisar por WhatsApp al proveedor que el negocio se registró. */
+    suspend fun mensajeWhatsAppRegistro(): String {
+        val f = _bienvenida.value
+        return LicenciaViewModel.mensajeWhatsAppRegistro(
+            f.nombreNegocio.trim(), f.telefonoNegocio.trim(), f.contactoNombre.trim().ifBlank { f.nombreCompleto.trim() },
+            LicenciaGuard.identificadorDispositivo(),
+        )
+    }
+
+    /** `null` si se creó; si no, el mensaje de error. Sin licencia, el administrador queda solo en el teléfono. */
+    private suspend fun crearAdministradorLocal(f: BienvenidaUiState): String? =
+        (repositorio.registrarNuevoUsuario(f.nombreUsuario, f.nombreCompleto, f.clave, "ADMINISTRADOR")
+            as? ResultadoRegistroUsuario.Error)?.mensaje
+
+    private suspend fun entrarComo(nombreUsuario: String, clave: String) {
+        when (val acceso = repositorio.autenticar(nombreUsuario, clave)) {
+            is ResultadoAutenticacion.Exito -> {
+                _bienvenida.value = BienvenidaUiState()
+                GestorSesion.iniciarSesion(acceso.usuario)
+                _uiState.update { it.copy(loginExitoso = true) }
+            }
+            is ResultadoAutenticacion.Error -> {
+                // No debería pasar: se deja en el inicio de sesión normal con el usuario escrito.
+                _bienvenida.value = BienvenidaUiState()
+                _uiState.update { it.copy(usuario = nombreUsuario.trim().lowercase(), mensajeErrorGeneral = acceso.mensaje) }
             }
         }
+    }
+
+    /** Los datos del registro son los de la factura: se guardan en la configuración del negocio del teléfono. */
+    private suspend fun guardarDatosDelNegocio(datos: DatosRegistro) {
+        val dao = AppBaseDatos.obtenerBaseDatos(getApplication()).configuracionNegocioDao()
+        val actual = dao.obtenerConfiguracionDirecta() ?: ConfiguracionNegocioEntidad()
+        dao.guardarConfiguracion(
+            actual.copy(
+                nombreNegocio = datos.nombreNegocio,
+                telefono = datos.telefono,
+                rncCedula = datos.rnc ?: actual.rncCedula,
+                direccion = datos.direccion ?: actual.direccion,
+                slogan = datos.slogan ?: actual.slogan,
+            )
+        )
     }
 
     /** Activa la licencia en este teléfono y trae sus usuarios para iniciar sesión con uno de ellos. */
@@ -296,6 +394,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private companion object {
+        /** Validación sencilla de correo (opcional); la API vuelve a validarlo. */
+        val FORMATO_CORREO = Regex("""^[^@\s]+@[^@\s]+\.[^@\s]+$""")
+
         /** Preferencia donde las versiones anteriores guardaban la contraseña en texto plano. */
         const val CLAVE_ANTIGUA = "clave"
     }

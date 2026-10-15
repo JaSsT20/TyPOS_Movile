@@ -64,8 +64,17 @@ class TransporteHttpUrlConnection(private val timeoutMs: Int = 10_000) : Transpo
 
 /** Respuesta de la API ya interpretada. */
 sealed interface RespuestaApi {
-    /** `/activar` o `/validar` exitoso. El token todavía NO está verificado. */
-    data class Token(val token: String) : RespuestaApi
+    /**
+     * `/activar`, `/validar` o `/migrar` exitoso. El token todavía NO está verificado. [versionUsuarios] es la huella
+     * de los usuarios de la licencia: si cambió respecto a la última aplicada, hay que descargar la lista.
+     */
+    data class Token(val token: String, val versionUsuarios: String? = null) : RespuestaApi
+
+    /**
+     * `/registro` o `/registro/estado`: [estado] es `pendiente`, `rechazado` o `asignado`. Con `asignado` viene el
+     * token de la licencia (todavía NO verificado).
+     */
+    data class Registro(val estado: String, val mensaje: String, val token: String?, val versionUsuarios: String?) : RespuestaApi
 
     /** `/desactivar` exitoso. */
     data object Ok : RespuestaApi
@@ -81,7 +90,21 @@ sealed interface RespuestaApi {
 }
 
 /** Qué espera cada endpoint en una respuesta exitosa. */
-enum class TipoRespuesta { TOKEN, OK, USUARIOS }
+enum class TipoRespuesta { TOKEN, OK, USUARIOS, REGISTRO }
+
+/** Datos del negocio que se registra desde la app (los mismos que salen en su factura) y su contacto. */
+data class DatosRegistro(
+    val nombreNegocio: String,
+    val telefono: String,
+    val email: String? = null,
+    val rnc: String? = null,
+    val direccion: String? = null,
+    val slogan: String? = null,
+    val contactoNombre: String? = null,
+    val contactoTelefono: String? = null,
+    val adminUsuario: String? = null,
+    val adminNombre: String? = null,
+)
 
 /** Usuario de la licencia tal como lo guarda la API (la contraseña viene con hash). */
 data class UsuarioRemoto(
@@ -159,6 +182,38 @@ class ClienteApiLicencias(
                 .put("nombre_dispositivo", nombreDispositivo ?: JSONObject.NULL)
                 .put("version_app", versionApp),
             tipo = TipoRespuesta.TOKEN,
+        )
+
+    /** Registra el negocio para que el proveedor le asigne una licencia. Reenviar no duplica. */
+    fun registrar(datos: DatosRegistro, deviceHash: String, nombreDispositivo: String?, versionApp: String): RespuestaApi =
+        post(
+            "/registro",
+            JSONObject()
+                .put("device_hash", deviceHash)
+                .put("nombre_dispositivo", nombreDispositivo ?: JSONObject.NULL)
+                .put("version_app", versionApp)
+                .put("nombre_negocio", datos.nombreNegocio)
+                .put("telefono", datos.telefono)
+                .put("email", datos.email ?: JSONObject.NULL)
+                .put("rnc", datos.rnc ?: JSONObject.NULL)
+                .put("direccion", datos.direccion ?: JSONObject.NULL)
+                .put("slogan", datos.slogan ?: JSONObject.NULL)
+                .put("contacto_nombre", datos.contactoNombre ?: JSONObject.NULL)
+                .put("contacto_telefono", datos.contactoTelefono ?: JSONObject.NULL)
+                .put("admin_usuario", datos.adminUsuario ?: JSONObject.NULL)
+                .put("admin_nombre", datos.adminNombre ?: JSONObject.NULL),
+            tipo = TipoRespuesta.REGISTRO,
+        )
+
+    /** Cómo va el registro de este teléfono; con licencia asignada trae el token. */
+    fun estadoRegistro(deviceHash: String, nombreDispositivo: String?, versionApp: String): RespuestaApi =
+        post(
+            "/registro/estado",
+            JSONObject()
+                .put("device_hash", deviceHash)
+                .put("nombre_dispositivo", nombreDispositivo ?: JSONObject.NULL)
+                .put("version_app", versionApp),
+            tipo = TipoRespuesta.REGISTRO,
         )
 
     fun validar(clave: String, deviceHash: String, versionApp: String): RespuestaApi =
@@ -256,7 +311,19 @@ class ClienteApiLicencias(
                 TipoRespuesta.OK -> RespuestaApi.Ok
                 TipoRespuesta.TOKEN -> {
                     val token = json.opt("token") as? String
-                    if (token.isNullOrEmpty()) RespuestaApi.FallaRed("Respuesta sin token.") else RespuestaApi.Token(token)
+                    if (token.isNullOrEmpty()) RespuestaApi.FallaRed("Respuesta sin token.")
+                    else RespuestaApi.Token(token, json.opt("version_usuarios") as? String)
+                }
+                TipoRespuesta.REGISTRO -> {
+                    val estado = json.opt("estado") as? String
+                    val token = json.opt("token") as? String
+                    when {
+                        estado !in ESTADOS_REGISTRO -> RespuestaApi.FallaRed("Estado de registro no reconocido.")
+                        estado == "asignado" && token.isNullOrEmpty() -> RespuestaApi.FallaRed("Respuesta sin token.")
+                        else -> RespuestaApi.Registro(
+                            estado!!, (json.opt("mensaje") as? String).orEmpty(), token, json.opt("version_usuarios") as? String
+                        )
+                    }
                 }
                 TipoRespuesta.USUARIOS -> try {
                     RespuestaApi.Usuarios(ListaUsuariosRemota.desdeJson(json))
@@ -272,5 +339,9 @@ class ClienteApiLicencias(
         }
         val mensaje = (json.opt("mensaje") as? String)?.takeIf { it.isNotBlank() } ?: "La solicitud fue rechazada."
         return RespuestaApi.ErrorNegocio(codigoError, mensaje, codigo)
+    }
+
+    private companion object {
+        val ESTADOS_REGISTRO = setOf("pendiente", "rechazado", "asignado")
     }
 }

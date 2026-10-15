@@ -100,9 +100,17 @@ object GestorUsuarios : UsuariosLicencia {
         cambios.actualizar.forEach { usuarioDao.actualizar(it) }
         _resumen.value = ResumenUsuariosLicencia(lista.maxUsuarios, lista.usuariosActivos)
 
-        // La sesión abierta refleja los cambios de nombre o rol que vengan de otro teléfono.
+        // La sesión abierta refleja los cambios de nombre o rol que vengan del portal o de otro teléfono; si al usuario
+        // lo desactivaron, se cierra su sesión (no puede seguir vendiendo).
         GestorSesion.usuarioActivo.value?.let { actual ->
-            usuarioDao.obtenerPorId(actual.id)?.let { GestorSesion.iniciarSesion(it) }
+            val vigente = usuarioDao.obtenerPorId(actual.id)
+            if (vigente == null || !vigente.estaActivo) {
+                GestorSesion.cerrarPorLicencia(
+                    "Tu usuario fue desactivado. Si crees que es un error, habla con el administrador del negocio."
+                )
+            } else {
+                GestorSesion.iniciarSesion(vigente)
+            }
         }
         if (cambios.insertar.isNotEmpty() || cambios.actualizar.isNotEmpty()) {
             Log.i(ETIQUETA_LOG, "Usuarios sincronizados: ${cambios.insertar.size} nuevos, ${cambios.actualizar.size} actualizados")
