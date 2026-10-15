@@ -5,6 +5,7 @@ import android.util.Log
 import com.typdevstudio.typos_movil.BuildConfig
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.repositorio.LicenciaRepositorio
+import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.EstadoLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.HoraRD
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.MotivoRestriccion
@@ -192,6 +193,8 @@ object LicenciaGuard {
 
     private const val ETIQUETA_LOG = "LicenciaGuard"
     private const val INTERVALO_REEVALUACION_MS = 60_000L
+    private const val PREFS_MIGRACION = "migracion_licencia"
+    private const val CLAVE_ULTIMO_RECHAZO_MIGRACION = "ultimo_rechazo_ms"
 
     private val _situacion = MutableStateFlow(SituacionLicencia.INICIAL)
     val situacion: StateFlow<SituacionLicencia> = _situacion.asStateFlow()
@@ -246,9 +249,12 @@ object LicenciaGuard {
         alcance.launch {
             try {
                 val ahora = System.currentTimeMillis()
-                if (!PoliticaValidacionAutomatica.debeIntentar(necesitaValidar(), ultimoIntentoAutomaticoMs, ahora)) return@launch
+                // Con licencia antigua vigente y sin licencia nueva, se pasa sola a la nube en vez de validar.
+                val migrar = debeMigrar()
+                if (!PoliticaValidacionAutomatica.debeIntentar(migrar || necesitaValidar(), ultimoIntentoAutomaticoMs, ahora)) return@launch
                 ultimoIntentoAutomaticoMs = ahora
-                if (validarAhora() is ResultadoLicencia.SinConexion) {
+                val resultado = if (migrar) migrarAhora() else validarAhora()
+                if (resultado is ResultadoLicencia.SinConexion) {
                     PlanificadorValidacionLicencia.programarAlReconectar(aplicacion)
                 }
             } catch (e: Exception) {
@@ -306,6 +312,40 @@ object LicenciaGuard {
         operar { repositorio.activar(clave, nombreDispositivo) }.also { sincronizarUsuariosSiValida(it) }
 
     suspend fun validarAhora(): ResultadoLicencia = operar { repositorio.validar() }.also { sincronizarUsuariosSiValida(it) }
+
+    /** `true` si conviene intentar ahora pasar la licencia antigua a la nube (ver [migrarAhora]). */
+    suspend fun debeMigrar(): Boolean = claveAntiguaParaMigrar() != null
+
+    /**
+     * Transición automática: envía la licencia antigua vigente al servidor, que crea la licencia nueva con el mismo
+     * vencimiento. Al lograrlo, los usuarios del teléfono suben a la licencia. Si el servidor la rechaza (por
+     * ejemplo, porque no la reconoce), se espera un día antes de volver a intentar; la licencia antigua sigue
+     * valiendo mientras tanto y el cliente siempre puede activar con su clave nueva a mano.
+     */
+    suspend fun migrarAhora(): ResultadoLicencia {
+        val claveAntigua = claveAntiguaParaMigrar() ?: return ResultadoLicencia.SinLicencia
+        val resultado = operar { repositorio.migrar(claveAntigua, LicenciaViewModel.nombreTelefonoPorDefecto()) }
+        when (resultado) {
+            is ResultadoLicencia.Rechazada, is ResultadoLicencia.TokenNoValido ->
+                prefsMigracion().edit().putLong(CLAVE_ULTIMO_RECHAZO_MIGRACION, System.currentTimeMillis()).apply()
+            is ResultadoLicencia.Exito -> prefsMigracion().edit().remove(CLAVE_ULTIMO_RECHAZO_MIGRACION).apply()
+            else -> Unit
+        }
+        sincronizarUsuariosSiValida(resultado)
+        return resultado
+    }
+
+    /** Clave de la licencia antigua, si está vigente, no hay licencia nueva y no se rechazó hace poco. */
+    private suspend fun claveAntiguaParaMigrar(): String? = withContext(Dispatchers.IO) {
+        if (!USAR_LICENCIA_ANTIGUA || !::repositorio.isInitialized || repositorio.datosGuardados().clave != null) {
+            return@withContext null
+        }
+        val antigua = repositorioAntiguo.verificarEstadoLicencia() as? EstadoLicenciaAntigua.Activa ?: return@withContext null
+        val ultimoRechazo = prefsMigracion().getLong(CLAVE_ULTIMO_RECHAZO_MIGRACION, -1L).takeIf { it >= 0 }
+        antigua.clave.takeIf { PoliticaMigracionAutomatica.debeIntentar(ultimoRechazo, System.currentTimeMillis()) }
+    }
+
+    private fun prefsMigracion() = aplicacion.getSharedPreferences(PREFS_MIGRACION, Context.MODE_PRIVATE)
 
     /** Tras activar o validar con éxito, el teléfono se pone al día con los usuarios de la licencia. */
     private suspend fun sincronizarUsuariosSiValida(resultado: ResultadoLicencia) {

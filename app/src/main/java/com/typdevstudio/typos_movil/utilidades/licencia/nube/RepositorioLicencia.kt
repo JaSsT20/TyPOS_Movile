@@ -87,6 +87,37 @@ class RepositorioLicencia(
         }
     }
 
+    /**
+     * Pasa la licencia antigua de este teléfono a la nube: el servidor crea (o reutiliza) la licencia nueva y
+     * responde con su token. La clave nueva se toma del token ya verificado. Si este teléfono ya tiene licencia
+     * nueva no hace nada.
+     */
+    @Synchronized
+    fun migrar(claveAntigua: String, nombreDispositivo: String?): ResultadoLicencia {
+        if (almacen.leer().clave != null) return ResultadoLicencia.Exito(estadoActual())
+        val nombre = nombreDispositivo?.trim()?.take(MAXIMO_NOMBRE_DISPOSITIVO)?.takeIf { it.isNotEmpty() }
+
+        return when (val respuesta = cliente.migrar(claveAntigua.trim(), deviceHash(), nombre, versionApp.take(MAXIMO_VERSION))) {
+            is RespuestaApi.Token -> {
+                val claveNueva = (verificador.verificar(respuesta.token) as? ResultadoVerificacion.Valido)?.payload?.licencia
+                    ?.takeIf { FORMATO_CLAVE.matches(it) }
+                if (claveNueva == null) {
+                    registro.advertencia("migración: token rechazado")
+                    ResultadoLicencia.TokenNoValido(MENSAJE_TOKEN_NO_VALIDO)
+                } else {
+                    aceptarToken(claveNueva, respuesta.token, "migración")
+                }
+            }
+            is RespuestaApi.ErrorNegocio -> {
+                // Como en la activación: no hay nada que bloquear, la licencia antigua sigue mandando.
+                registro.advertencia("Migración rechazada: ${respuesta.codigo}")
+                ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
+            }
+            is RespuestaApi.FallaRed -> sinConexion("migración", respuesta)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+        }
+    }
+
     @Synchronized
     fun validar(): ResultadoLicencia {
         val clave = almacen.leer().clave ?: return ResultadoLicencia.SinLicencia

@@ -149,6 +149,18 @@ class ClienteApiLicencias(
             tipo = TipoRespuesta.TOKEN,
         )
 
+    /** Pasa la licencia antigua (16 caracteres) a la nube. Responde un token, igual que [activar]. */
+    fun migrar(claveAntigua: String, deviceHash: String, nombreDispositivo: String?, versionApp: String): RespuestaApi =
+        post(
+            "/migrar",
+            JSONObject()
+                .put("clave_antigua", claveAntigua)
+                .put("device_hash", deviceHash)
+                .put("nombre_dispositivo", nombreDispositivo ?: JSONObject.NULL)
+                .put("version_app", versionApp),
+            tipo = TipoRespuesta.TOKEN,
+        )
+
     fun validar(clave: String, deviceHash: String, versionApp: String): RespuestaApi =
         post(
             "/validar",

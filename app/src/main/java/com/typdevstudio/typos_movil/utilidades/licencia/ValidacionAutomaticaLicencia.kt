@@ -24,16 +24,31 @@ object PoliticaValidacionAutomatica {
         necesitaValidar && (ultimoIntentoMs == null || ahoraMs - ultimoIntentoMs >= MINIMO_ENTRE_INTENTOS_MS || ahoraMs < ultimoIntentoMs)
 }
 
+/** Cuándo reintentar pasar la licencia antigua a la nube después de que el servidor la rechazó (pura). */
+object PoliticaMigracionAutomatica {
+
+    /** Un rechazo (licencia no reconocida, vencida...) no cambia de un minuto a otro: se espera un día. */
+    const val ESPERA_TRAS_RECHAZO_MS = 24L * 60 * 60 * 1000
+
+    fun debeIntentar(ultimoRechazoMs: Long?, ahoraMs: Long): Boolean =
+        ultimoRechazoMs == null || ahoraMs - ultimoRechazoMs >= ESPERA_TRAS_RECHAZO_MS || ahoraMs < ultimoRechazoMs
+}
+
 /**
- * Valida la licencia en segundo plano si pasaron más de 12 horas desde la última validación exitosa.
+ * Valida la licencia en segundo plano si pasaron más de 12 horas desde la última validación exitosa, o pasa la
+ * licencia antigua a la nube si el teléfono todavía no tiene la nueva.
  * Las fallas de red piden reintento (con espera creciente) y nunca cambian el estado guardado.
  */
 class TrabajadorValidacionLicencia(contexto: Context, parametros: WorkerParameters) : CoroutineWorker(contexto, parametros) {
 
     override suspend fun doWork(): Result {
         LicenciaGuard.inicializar(applicationContext)
-        if (!LicenciaGuard.necesitaValidar()) return Result.success()
-        return when (LicenciaGuard.validarAhora()) {
+        val resultado = when {
+            LicenciaGuard.debeMigrar() -> LicenciaGuard.migrarAhora()
+            LicenciaGuard.necesitaValidar() -> LicenciaGuard.validarAhora()
+            else -> return Result.success()
+        }
+        return when (resultado) {
             is ResultadoLicencia.SinConexion -> if (runAttemptCount < MAXIMO_REINTENTOS) Result.retry() else Result.success()
             else -> Result.success()
         }

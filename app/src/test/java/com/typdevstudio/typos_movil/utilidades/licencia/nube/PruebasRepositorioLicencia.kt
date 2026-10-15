@@ -173,6 +173,72 @@ class PruebasRepositorioLicencia {
         assertTrue(repositorio.estadoActual() is EstadoLicencia.Activa)
     }
 
+    // ---------------- Migración de la licencia antigua ----------------
+
+    @Test
+    fun migrarGuardaLaLicenciaNuevaQueTraeElToken() {
+        api.licenciaEnToken = clave // el servidor creó esta licencia nueva
+
+        val resultado = repositorio.migrar(" 0F95001FCD859DEC ", "Samsung A54")
+
+        assertTrue(resultado.toString(), resultado is ResultadoLicencia.Exito)
+        assertEquals(listOf("migrar"), api.rutas)
+        assertEquals(clave, almacen.leer().clave)
+        assertTrue(repositorio.estadoActual() is EstadoLicencia.Activa)
+        // Con la licencia nueva guardada, el siguiente paso normal es validar con ella.
+        api.licenciaEnToken = null
+        assertTrue(repositorio.validar() is ResultadoLicencia.Exito)
+    }
+
+    @Test
+    fun migrarEnviaLaClaveAntiguaYElTelefono() {
+        var cuerpo: JSONObject? = null
+        val transporte = TransporteHttp { _, _, json ->
+            cuerpo = JSONObject(json!!)
+            RespuestaHttp(404, """{"ok":false,"codigo":"MIGRACION_NO_DISPONIBLE","mensaje":"No."}""")
+        }
+        ClienteApiLicencias("http://api/api/v1", transporte).migrar("0F95001FCD859DEC", "hash-1234", "Caja 1", "1.2.1")
+
+        assertEquals("0F95001FCD859DEC", cuerpo!!.getString("clave_antigua"))
+        assertEquals("hash-1234", cuerpo!!.getString("device_hash"))
+        assertEquals("Caja 1", cuerpo!!.getString("nombre_dispositivo"))
+        assertEquals("1.2.1", cuerpo!!.getString("version_app"))
+    }
+
+    @Test
+    fun migracionRechazadaOSinRedNoGuardaNada() {
+        for (respuesta in listOf(
+            errorNegocio("MIGRACION_NO_DISPONIBLE", 404),
+            errorNegocio("LICENCIA_VENCIDA", 403),
+            { _: String -> throw java.net.UnknownHostException("sin red") },
+        )) {
+            api.siguiente = respuesta
+            val resultado = repositorio.migrar("0F95001FCD859DEC", null)
+            assertTrue(resultado.toString(), resultado is ResultadoLicencia.Rechazada || resultado is ResultadoLicencia.SinConexion)
+        }
+        assertNull(almacen.leer().clave)
+        assertNull(almacen.leer().bloqueoServidor)
+        assertEquals(EstadoLicencia.SinActivar, repositorio.estadoActual())
+    }
+
+    @Test
+    fun migrarNoAceptaTokensFirmadosPorOtraLlave() {
+        api.licenciaEnToken = clave
+        api.clavePrivada = FabricaTokens.generarParLlaves().private
+
+        assertTrue(repositorio.migrar("0F95001FCD859DEC", null) is ResultadoLicencia.TokenNoValido)
+        assertNull(almacen.leer().clave)
+    }
+
+    @Test
+    fun conLicenciaNuevaYaGuardadaNoSeMigra() {
+        activar()
+        api.rutas.clear()
+
+        assertTrue(repositorio.migrar("0F95001FCD859DEC", null) is ResultadoLicencia.Exito)
+        assertTrue(api.rutas.isEmpty())
+    }
+
     @Test
     fun unTokenInvalidoEnLaValidacionNoReemplazaElBueno() {
         activar()
