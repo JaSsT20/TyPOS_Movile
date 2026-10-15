@@ -21,14 +21,6 @@ android {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
 
-        // Licencias en la nube: clave pública ECDSA P-256 (Base64 de SubjectPublicKeyInfo) con la que se verifican
-        // los tokens. TODO: es una clave de PRUEBA; reemplazarla por la de producción antes de publicar un release.
-        buildConfigField(
-            "String",
-            "CLAVE_PUBLICA_LICENCIAS",
-            "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0/PmdlivtoC2d6SDoUSP6PjmAonBAbFsf/GtQ5XN6xdfij1uy068sHd9XzVdsJQ8ACsMeJm8Kl6hS1UH8UFvlg==\""
-        )
-
         // Contacto que aparece en los avisos de vencimiento de la licencia (5 días antes y el mismo día).
         buildConfigField("String", "CONTACTO_LICENCIA_NOMBRE", "\"T&P DevStudio\"")
         buildConfigField("String", "CONTACTO_LICENCIA_TELEFONO", "\"+1 (849) 359-4927\"")
@@ -40,10 +32,23 @@ android {
             // (o en gradle.properties). La IP debe estar permitida en src/debug/res/xml/network_security_config.xml.
             val urlApiDebug = providers.gradleProperty("licenciasUrlApiDebug").getOrElse("http://192.168.1.2:5109/api/v1")
             buildConfigField("String", "URL_API_LICENCIAS", "\"$urlApiDebug\"")
+            // Clave pública ECDSA P-256 (Base64 de SubjectPublicKeyInfo) con la que se verifican los tokens.
+            // PRUEBA: pareja de llaves/prueba/clave_privada.pem de TyPOS_Movil_Admin (la que usa la API local).
+            buildConfigField(
+                "String",
+                "CLAVE_PUBLICA_LICENCIAS",
+                "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE0/PmdlivtoC2d6SDoUSP6PjmAonBAbFsf/GtQ5XN6xdfij1uy068sHd9XzVdsJQ8ACsMeJm8Kl6hS1UH8UFvlg==\""
+            )
         }
         release {
             // API de licencias de producción (IIS, solo HTTPS).
             buildConfigField("String", "URL_API_LICENCIAS", "\"https://atpm-prod.notfoundgroup.com/api/v1\"")
+            // PRODUCCIÓN: pareja de la llave privada que vive solo en el servidor.
+            buildConfigField(
+                "String",
+                "CLAVE_PUBLICA_LICENCIAS",
+                "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEUmtkGXIEEeI3yIrEQEJcyjC4PAfD28SbtYQOSn/oAfeAJuXoVFh9prPjhQWPtaGh/5E0TCrTwlA6N9dSfzgNg==\""
+            )
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
