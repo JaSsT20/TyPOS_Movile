@@ -42,8 +42,8 @@ android {
             buildConfigField("String", "URL_API_LICENCIAS", "\"$urlApiDebug\"")
         }
         release {
-            // TODO: dominio HTTPS real del servidor IIS antes de publicar un release que use la licencia nueva.
-            buildConfigField("String", "URL_API_LICENCIAS", "\"https://TU-DOMINIO/api/v1\"")
+            // API de licencias de producción (IIS, solo HTTPS).
+            buildConfigField("String", "URL_API_LICENCIAS", "\"https://atpm-prod.notfoundgroup.com/api/v1\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
