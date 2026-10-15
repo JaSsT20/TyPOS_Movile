@@ -195,6 +195,7 @@ object LicenciaGuard {
     private const val INTERVALO_REEVALUACION_MS = 60_000L
     private const val PREFS_MIGRACION = "migracion_licencia"
     private const val CLAVE_ULTIMO_RECHAZO_MIGRACION = "ultimo_rechazo_ms"
+    private const val CLAVE_VERSION_RECHAZO_MIGRACION = "version_rechazo"
 
     private val _situacion = MutableStateFlow(SituacionLicencia.INICIAL)
     val situacion: StateFlow<SituacionLicencia> = _situacion.asStateFlow()
@@ -326,9 +327,10 @@ object LicenciaGuard {
         val claveAntigua = claveAntiguaParaMigrar() ?: return ResultadoLicencia.SinLicencia
         val resultado = operar { repositorio.migrar(claveAntigua, LicenciaViewModel.nombreTelefonoPorDefecto()) }
         when (resultado) {
-            is ResultadoLicencia.Rechazada, is ResultadoLicencia.TokenNoValido ->
-                prefsMigracion().edit().putLong(CLAVE_ULTIMO_RECHAZO_MIGRACION, System.currentTimeMillis()).apply()
-            is ResultadoLicencia.Exito -> prefsMigracion().edit().remove(CLAVE_ULTIMO_RECHAZO_MIGRACION).apply()
+            is ResultadoLicencia.Rechazada ->
+                if (PoliticaMigracionAutomatica.esRechazoDeLicencia(resultado.codigo)) guardarRechazoMigracion()
+            is ResultadoLicencia.TokenNoValido -> guardarRechazoMigracion()
+            is ResultadoLicencia.Exito -> prefsMigracion().edit().clear().apply()
             else -> Unit
         }
         sincronizarUsuariosSiValida(resultado)
@@ -341,9 +343,20 @@ object LicenciaGuard {
             return@withContext null
         }
         val antigua = repositorioAntiguo.verificarEstadoLicencia() as? EstadoLicenciaAntigua.Activa ?: return@withContext null
-        val ultimoRechazo = prefsMigracion().getLong(CLAVE_ULTIMO_RECHAZO_MIGRACION, -1L).takeIf { it >= 0 }
-        antigua.clave.takeIf { PoliticaMigracionAutomatica.debeIntentar(ultimoRechazo, System.currentTimeMillis()) }
+        val prefs = prefsMigracion()
+        val ultimoRechazo = prefs.getLong(CLAVE_ULTIMO_RECHAZO_MIGRACION, -1L).takeIf { it >= 0 }
+        val versionDelRechazo = prefs.getInt(CLAVE_VERSION_RECHAZO_MIGRACION, -1).takeIf { it >= 0 }
+        antigua.clave.takeIf {
+            PoliticaMigracionAutomatica.debeIntentar(
+                ultimoRechazo, versionDelRechazo, BuildConfig.VERSION_CODE, System.currentTimeMillis()
+            )
+        }
     }
+
+    private fun guardarRechazoMigracion() = prefsMigracion().edit()
+        .putLong(CLAVE_ULTIMO_RECHAZO_MIGRACION, System.currentTimeMillis())
+        .putInt(CLAVE_VERSION_RECHAZO_MIGRACION, BuildConfig.VERSION_CODE)
+        .apply()
 
     private fun prefsMigracion() = aplicacion.getSharedPreferences(PREFS_MIGRACION, Context.MODE_PRIVATE)
 
