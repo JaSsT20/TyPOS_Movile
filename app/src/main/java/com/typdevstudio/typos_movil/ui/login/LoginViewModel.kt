@@ -74,22 +74,26 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             .map { it.isEmpty() }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
         cargarCredencialesGuardadas()
+        viewModelScope.launch { repositorio.convertirClavesAntiguas() }
     }
 
+    /**
+     * "Recordar" guarda solo el nombre de usuario: la contraseña nunca se guarda.
+     * Las versiones anteriores la guardaban en texto plano; si quedó alguna, se borra aquí.
+     */
     private fun cargarCredencialesGuardadas() {
-        val recordarGuardado = prefs.getBoolean("recordar", false)
-        if (recordarGuardado) {
-            val usuarioGuardado = prefs.getString("usuario", "") ?: ""
-            val claveGuardada = prefs.getString("clave", "") ?: ""
-            _uiState.update {
-                it.copy(
-                    usuario = usuarioGuardado,
-                    clave = claveGuardada,
-                    recordar = true
-                )
-            }
+        if (prefs.contains(CLAVE_ANTIGUA)) {
+            prefs.edit().remove(CLAVE_ANTIGUA).commit()
         }
+        _uiState.value = estadoInicial()
     }
+
+    private fun estadoInicial(): LoginUiState =
+        if (prefs.getBoolean("recordar", false)) {
+            LoginUiState(usuario = prefs.getString("usuario", "") ?: "", recordar = true)
+        } else {
+            LoginUiState()
+        }
 
     fun onUsuarioCambiado(nuevoUsuario: String) {
         _uiState.update {
@@ -121,7 +125,6 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             prefs.edit()
                 .putBoolean("recordar", false)
                 .remove("usuario")
-                .remove("clave")
                 .apply()
         }
     }
@@ -180,13 +183,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         prefs.edit()
                             .putBoolean("recordar", true)
                             .putString("usuario", usuarioTrim)
-                            .putString("clave", claveTrim)
                             .apply()
                     } else {
                         prefs.edit()
                             .putBoolean("recordar", false)
                             .remove("usuario")
-                            .remove("clave")
                             .apply()
                     }
 
@@ -291,15 +292,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun reiniciarEstado() {
-        val recordarGuardado = prefs.getBoolean("recordar", false)
-        if (recordarGuardado) {
-            _uiState.value = LoginUiState(
-                usuario = prefs.getString("usuario", "") ?: "",
-                clave = prefs.getString("clave", "") ?: "",
-                recordar = true
-            )
-        } else {
-            _uiState.value = LoginUiState()
-        }
+        _uiState.value = estadoInicial()
+    }
+
+    private companion object {
+        /** Preferencia donde las versiones anteriores guardaban la contraseña en texto plano. */
+        const val CLAVE_ANTIGUA = "clave"
     }
 }

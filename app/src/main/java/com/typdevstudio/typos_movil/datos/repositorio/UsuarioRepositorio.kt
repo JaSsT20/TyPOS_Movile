@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Usuarios del teléfono. Las contraseñas se guardan como hash PBKDF2 ([HashClave]); las antiguas en texto plano
- * se siguen aceptando y se convierten en hash al iniciar sesión.
+ * se siguen aceptando y se convierten en hash al abrir el login ([convertirClavesAntiguas]) o al iniciar sesión.
  *
  * Si el teléfono tiene licencia en la nube, crear usuarios y cambiar nombre o contraseña pasa por la licencia
  * (requiere internet) para que el cambio llegue a los demás teléfonos; sin licencia nueva se hace solo aquí.
@@ -39,6 +39,17 @@ class UsuarioRepositorio(
                     ResultadoAutenticacion.Exito(convertido)
                 }
             }
+        }
+
+    /**
+     * Reemplaza por su hash toda contraseña que siga en texto plano (versiones anteriores, o un respaldo antiguo
+     * restaurado), sin esperar a que ese usuario inicie sesión. Devuelve cuántas se convirtieron.
+     */
+    suspend fun convertirClavesAntiguas(): Int =
+        withContext(Dispatchers.IO) {
+            val pendientes = usuarioDao.obtenerTodos().filter { it.clave.isNotEmpty() && !HashClave.esHash(it.clave) }
+            pendientes.forEach { usuarioDao.actualizar(it.copy(clave = HashClave.generar(it.clave))) }
+            pendientes.size
         }
 
     fun obtenerUsuariosActivos(): Flow<List<UsuarioEntidad>> = usuarioDao.obtenerTodosActivos()

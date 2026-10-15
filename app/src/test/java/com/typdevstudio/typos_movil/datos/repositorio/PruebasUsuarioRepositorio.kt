@@ -87,6 +87,24 @@ class PruebasUsuarioRepositorio {
     }
 
     @Test
+    fun `convertir claves antiguas deja todas en hash sin login`() = runBlocking {
+        val texto = usuario("1234", nombre = "ana")
+        val inactivo = usuario("abcd", activo = false, nombre = "luis")
+        val yaHash = HashClave.generar("5678", iteraciones = 1000)
+        val conHash = usuario(yaHash, nombre = "eva")
+
+        assertEquals(2, repo.convertirClavesAntiguas())
+
+        assertTrue(dao.filas.value.all { HashClave.esHash(it.clave) })
+        assertTrue(HashClave.verificar("1234", dao.obtenerPorId(texto)!!.clave))
+        assertTrue(HashClave.verificar("abcd", dao.obtenerPorId(inactivo)!!.clave))
+        assertEquals(yaHash, dao.obtenerPorId(conHash)!!.clave)
+        assertTrue(repo.autenticar("ana", "1234") is ResultadoAutenticacion.Exito)
+        // Una segunda vez no hay nada que convertir.
+        assertEquals(0, repo.convertirClavesAntiguas())
+    }
+
+    @Test
     fun `login con hash y clave incorrecta o usuario inactivo`() = runBlocking {
         usuario(HashClave.generar("1234", iteraciones = 1000))
         usuario("9999", activo = false, nombre = "beto")

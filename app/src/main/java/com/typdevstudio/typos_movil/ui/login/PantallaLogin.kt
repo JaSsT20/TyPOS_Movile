@@ -223,7 +223,7 @@ fun PantallaLogin(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // Opción para Recordar credenciales
+                    // Opción para recordar el usuario (la contraseña nunca se guarda)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -243,7 +243,7 @@ fun PantallaLogin(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Recordar",
+                            text = "Recordar usuario",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
