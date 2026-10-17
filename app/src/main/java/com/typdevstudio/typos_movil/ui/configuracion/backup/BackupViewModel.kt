@@ -145,11 +145,7 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
             is ResultadoConsultaTransferencia.Disponible -> {
                 val c = consulta.consulta
                 val nombre = c.nombreOrigen ?: backup.nombreOrigen
-                val variante = when {
-                    c.yaRegistrado -> VarianteRestauracion.Normal
-                    c.hayCupo -> VarianteRestauracion.AgregarTelefono(nombre, c.enUso + 1, c.maxDispositivos)
-                    else -> VarianteRestauracion.Desvincular(nombre, c.maxDispositivos)
-                }
+                val variante = VarianteRestauracion.desdeConsulta(c.yaRegistrado, c.hayCupo, c.enUso, c.maxDispositivos, nombre)
                 ConfirmacionRestauracion(backup, variante, idOperacion, deOtroTelefono = true, requiereTransferencia = !c.yaRegistrado)
             }
         }
@@ -313,10 +309,11 @@ class BackupViewModel(application: Application) : AndroidViewModel(application) 
         mostrarError(falla, idOperacion)
     }
 
-    /** La API no permitió la transferencia: su mensaje ya es claro para el usuario. */
+    /** La API no permitió la transferencia: mensaje del catálogo para ese código y código de soporte. */
     private fun rechazoDeLaApi(codigo: String, mensaje: String, idOperacion: String, paso: String) {
         ReportadorEventosBackup.registrar(contexto, TiposEventoBackup.RESTAURACION_FALLIDA, idOperacion, codigo, paso)
-        _uiState.update { it.copy(mensajeAlerta = conCodigo(mensaje, idOperacion, "TR"), esError = true) }
+        val texto = CodigosBackup.mensajeDeTransferencia(codigo, mensaje)
+        _uiState.update { it.copy(mensajeAlerta = conCodigo(texto, idOperacion, "TR"), esError = true) }
     }
 
     private fun conCodigo(mensaje: String, idOperacion: String, prefijo: String = "BK") =

@@ -37,6 +37,23 @@ object CodigosBackup {
         else -> "Ocurrió un problema con la copia de seguridad. Inténtelo de nuevo."
     }
 
+    /**
+     * Mensaje para un rechazo de la API al consultar o hacer la transferencia (restaurar una copia de otro teléfono).
+     * Los códigos conocidos usan el texto del catálogo, pensado para este momento; los demás, el mensaje de la API.
+     */
+    fun mensajeDeTransferencia(codigo: String, mensajeApi: String): String = when (codigo) {
+        "TOKEN_ORIGEN_INVALIDO" -> "No pudimos confirmar de dónde viene esta copia. Comuníquese con soporte."
+        "LIMITE_TRANSFERENCIAS" -> "Ya cambió de teléfono varias veces este mes. Comuníquese con soporte para continuar."
+        "DISPOSITIVO_EN_OTRA_LICENCIA" -> mensaje(OTRA_LICENCIA)
+        "LIMITE_DISPOSITIVOS" -> "Su plan ya no tiene espacio para otro teléfono. Comuníquese con soporte."
+        "LICENCIA_VENCIDA" -> "Su licencia está vencida. Renuévela para restaurar esta copia."
+        "LICENCIA_SUSPENDIDA" -> "Su licencia está suspendida. Comuníquese con soporte."
+        "LICENCIA_NO_ENCONTRADA" -> "La licencia de esta copia ya no existe. Comuníquese con soporte."
+        "DISPOSITIVO_REVOCADO" -> "Este teléfono fue desvinculado de su cuenta. Comuníquese con soporte."
+        "ERROR_INTERNO" -> "Ocurrió un problema de nuestro lado. Inténtelo en unos minutos."
+        else -> mensajeApi.ifBlank { mensaje(RESTAURACION_FALLIDA) }
+    }
+
     /** `Código de soporte: BK-4F2A`: las primeras 4 letras del id de la operación, para buscarla en los logs. */
     fun codigoSoporte(idOperacion: String, prefijo: String = "BK"): String =
         "$prefijo-${idOperacion.filter { it.isLetterOrDigit() }.take(4).uppercase()}"

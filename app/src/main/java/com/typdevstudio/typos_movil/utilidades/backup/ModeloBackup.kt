@@ -72,6 +72,19 @@ sealed interface VarianteRestauracion {
 
     /** Copia de otro teléfono y sin cupo: el otro teléfono se desvincula y queda en modo consulta. */
     data class Desvincular(val nombreOrigen: String, val maximo: Int) : VarianteRestauracion
+
+    companion object {
+        /**
+         * El aviso que corresponde a la respuesta de `/transferir/consultar`. Si no hay cupo y no hay teléfono que
+         * desvincular, la API ya respondió con un error, así que aquí sin cupo siempre es desvincular.
+         */
+        fun desdeConsulta(yaRegistrado: Boolean, hayCupo: Boolean, enUso: Int, maximo: Int, nombreOrigen: String) =
+            when {
+                yaRegistrado -> Normal
+                hayCupo -> AgregarTelefono(nombreOrigen, enUso + 1, maximo)
+                else -> Desvincular(nombreOrigen, maximo)
+            }
+    }
 }
 
 /** Restauración pendiente de que el usuario confirme. */

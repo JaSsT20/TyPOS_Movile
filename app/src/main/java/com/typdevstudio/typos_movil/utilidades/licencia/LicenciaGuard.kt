@@ -137,7 +137,8 @@ data class SituacionLicencia(
             "Pasaron demasiados días sin validar la licencia. Conéctese a internet y toque «Validar ahora»."
         MotivoRestriccion.SUSPENDIDA -> "La licencia está suspendida. Comuníquese con su proveedor."
         MotivoRestriccion.VENCIDA -> "La licencia venció. Renuévela con su proveedor y luego toque «Validar ahora»."
-        MotivoRestriccion.REVOCADO -> "Este teléfono fue bloqueado en la licencia. Comuníquese con su proveedor."
+        MotivoRestriccion.REVOCADO ->
+            "Este teléfono fue desvinculado de la licencia. Para volver a vender, comuníquese con su proveedor."
         MotivoRestriccion.FIRMA_INVALIDA, MotivoRestriccion.DISPOSITIVO_DISTINTO ->
             "La licencia guardada no es válida para este teléfono. Vuelva a ingresar su clave de licencia."
         MotivoRestriccion.RELOJ_ALTERADO ->
