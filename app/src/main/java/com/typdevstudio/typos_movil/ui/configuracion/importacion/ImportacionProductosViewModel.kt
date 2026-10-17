@@ -148,7 +148,7 @@ class ImportacionProductosViewModel(application: Application) : AndroidViewModel
             stock = 1.0,
             categoria = "General",
             esValido = false,
-            errores = listOf("Ingresa un precio de venta mayor a 0.")
+            errores = listOf("Ingrese un precio de venta mayor a 0.")
         )
         _uiState.update { estado ->
             estado.copy(

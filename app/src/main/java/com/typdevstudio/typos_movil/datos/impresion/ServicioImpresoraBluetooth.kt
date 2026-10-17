@@ -89,7 +89,7 @@ object ServicioImpresoraBluetooth {
             ?: return@withContext ResultadoImpresion.Error("El dispositivo no cuenta con Bluetooth")
 
         if (!adaptador.isEnabled) {
-            return@withContext ResultadoImpresion.Error("El Bluetooth se encuentra apagado. Por favor enciéndelo.")
+            return@withContext ResultadoImpresion.Error("El Bluetooth se encuentra apagado. Por favor enciéndalo.")
         }
 
         var socket: BluetoothSocket? = null
@@ -109,7 +109,7 @@ object ServicioImpresoraBluetooth {
             ResultadoImpresion.Exito
         } catch (e: Exception) {
             try { socket?.close() } catch (_: Exception) {}
-            ResultadoImpresion.Error("Error al conectar con la impresora: ${e.localizedMessage ?: "Verifica que esté encendida y vinculada"}")
+            ResultadoImpresion.Error("Error al conectar con la impresora: ${e.localizedMessage ?: "Verifique que esté encendida y vinculada"}")
         }
     }
 

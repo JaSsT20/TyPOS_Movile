@@ -199,7 +199,7 @@ fun DialogoActivarUsuario(
                 )
 
                 Text(
-                    text = "Ingresa el código de invitación generado por el administrador para habilitar tu cuenta.",
+                    text = "Ingrese el código de invitación generado por el administrador para habilitar su cuenta.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -298,7 +298,7 @@ fun DialogoActivarUsuario(
                     CampoTextoPos(
                         valor = clave,
                         alCambiarValor = { clave = it },
-                        etiqueta = "Crea tu Contraseña *",
+                        etiqueta = "Cree su Contraseña *",
                         iconoInicio = Icons.Filled.Lock,
                         esContrasena = true,
                         opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next)

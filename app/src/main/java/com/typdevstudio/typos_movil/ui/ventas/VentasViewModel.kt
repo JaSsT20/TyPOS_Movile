@@ -217,7 +217,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                 if (item.producto.id == idProducto) {
                     val nuevaCantidad = item.cantidad + 1.0
                     if (item.producto.controlaStock && nuevaCantidad > item.producto.stock) {
-                        _mensajeAlerta.value = "No puedes agregar más: Stock máximo disponible de '${item.producto.nombre}' es ${item.producto.stock.toInt()}."
+                        _mensajeAlerta.value = "No puede agregar más: Stock máximo disponible de '${item.producto.nombre}' es ${item.producto.stock.toInt()}."
                         item
                     } else {
                         item.copy(cantidad = nuevaCantidad)
@@ -317,7 +317,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
             "Efectivo" -> {
                 montoRecibidoDouble = estadoCobro.montoRecibido.toDoubleOrNull() ?: totalVenta
                 if (montoRecibidoDouble <= 0.0) {
-                    _cobroState.update { it.copy(mensajeError = "Ingresa un monto recibido válido mayor a 0") }
+                    _cobroState.update { it.copy(mensajeError = "Ingrese un monto recibido válido mayor a 0") }
                     return
                 }
                 if (montoRecibidoDouble < totalVenta && !confirmarMenorMonto) {
@@ -346,7 +346,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                 val sumaPagos = montoEfectivo + montoTransferencia + montoCheque
 
                 if (sumaPagos <= 0.0) {
-                    _cobroState.update { it.copy(mensajeError = "Ingresa al menos un monto de pago válido mayor a 0") }
+                    _cobroState.update { it.copy(mensajeError = "Ingrese al menos un monto de pago válido mayor a 0") }
                     return
                 }
                 if (sumaPagos < totalVenta && !confirmarMenorMonto) {

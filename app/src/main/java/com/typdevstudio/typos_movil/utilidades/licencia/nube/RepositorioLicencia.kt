@@ -446,11 +446,11 @@ class RepositorioLicencia(
         private const val ESTADO_ASIGNADO = "asignado"
 
         private const val MENSAJE_SIN_CONEXION =
-            "No se pudo conectar con el servidor de licencias. Revisa tu conexión a internet e intenta de nuevo."
+            "No se pudo conectar con el servidor de licencias. Revise su conexión a internet e inténtelo de nuevo."
         private const val MENSAJE_TOKEN_NO_VALIDO =
-            "La respuesta del servidor de licencias no es válida para este teléfono. Actualiza la app o contacta a soporte."
+            "La respuesta del servidor de licencias no es válida para este teléfono. Actualice la app o contacte a soporte."
         private const val MENSAJE_RELOJ =
-            "La fecha y hora del teléfono no son correctas. Corrígelas (activa la hora automática) e intenta de nuevo."
+            "La fecha y hora del teléfono no son correctas. Corríjalas (active la hora automática) e inténtelo de nuevo."
 
         /** Mayúsculas y sin espacios, como la normaliza el servidor. */
         fun normalizarClave(clave: String): String = clave.filterNot { it.isWhitespace() }.uppercase()

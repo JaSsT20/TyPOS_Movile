@@ -207,7 +207,7 @@ fun PantallaFormularioProducto(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Elige cómo deseas agregar la imagen (hasta 3 fotos por producto):",
+                    text = "Elija cómo desea agregar la imagen (hasta 3 fotos por producto):",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -311,7 +311,7 @@ fun PantallaFormularioProducto(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Selecciona una o más fotos guardadas",
+                                text = "Seleccione una o más fotos guardadas",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -340,7 +340,7 @@ fun PantallaFormularioProducto(
                             color = Blanco
                         )
                         Text(
-                            text = if (estado.id == 0L) "Completa los datos del registro" else "Modifica los detalles correspondientes",
+                            text = if (estado.id == 0L) "Complete los datos del registro" else "Modifique los detalles correspondientes",
                             fontSize = 12.sp,
                             color = Blanco.copy(alpha = 0.8f)
                         )

@@ -427,7 +427,7 @@ private fun VistaSeleccionArchivo(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Usa nuestra plantilla oficial compatible con Excel y Sheets",
+                            text = "Use nuestra plantilla oficial compatible con Excel y Sheets",
                             fontSize = 12.sp,
                             color = GrisTexto
                         )
@@ -493,13 +493,13 @@ private fun VistaSeleccionArchivo(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Paso 2: Carga tu archivo",
+                            text = "Paso 2: Cargue su archivo",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Selecciona el archivo CSV o Excel completado",
+                            text = "Seleccione el archivo CSV o Excel completado",
                             fontSize = 12.sp,
                             color = GrisTexto
                         )
@@ -550,7 +550,7 @@ private fun VistaSeleccionArchivo(
                                 modifier = Modifier.size(44.dp)
                             )
                             Text(
-                                text = "Toca para buscar tu archivo",
+                                text = "Toque para buscar su archivo",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = AzulPrimario
@@ -1288,7 +1288,7 @@ private fun VistaResultadoImportacion(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Los productos han sido integrados a tu catálogo de venta",
+            text = "Los productos han sido integrados a su catálogo de venta",
             fontSize = 13.sp,
             color = GrisTexto,
             textAlign = TextAlign.Center

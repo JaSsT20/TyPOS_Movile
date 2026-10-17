@@ -128,8 +128,8 @@ fun PantallaProductos(
             icono = Icons.Filled.Block,
             colorIcono = AmarilloAdvertencia,
             titulo = "¿Desactivar producto?",
-            mensaje = "\"${producto.nombre}\" dejará de aparecer en ventas y búsquedas. Lo encontrarás en el filtro " +
-                "Desactivados, donde puedes reactivarlo o eliminarlo.",
+            mensaje = "\"${producto.nombre}\" dejará de aparecer en ventas y búsquedas. Lo encontrará en el filtro " +
+                "Desactivados, donde puede reactivarlo o eliminarlo.",
             acciones = {
                 BotonPos(
                     texto = "Desactivar",
@@ -390,7 +390,7 @@ fun PantallaProductos(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Prueba cambiando los filtros o agrega un nuevo producto o servicio",
+                            text = "Pruebe cambiando los filtros o agregue un nuevo producto o servicio",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

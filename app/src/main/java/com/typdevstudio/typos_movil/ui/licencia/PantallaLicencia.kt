@@ -75,7 +75,7 @@ fun PantallaLicencia(
             colorIcono = RojoError,
             titulo = "¿Desactivar este teléfono?",
             mensaje = "Se liberará su lugar en la licencia y este teléfono quedará en modo solo consulta hasta que " +
-                "vuelvas a ingresar la clave. Tus ventas y productos no se borran.",
+                "vuelva a ingresar la clave. Sus ventas y productos no se borran.",
             acciones = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -137,7 +137,7 @@ fun PantallaLicencia(
                     val activos = estado.usuariosActivos
                     if (activos != null && activos > payload.maxUsuarios) {
                         Text(
-                            "Tienes más usuarios de los que permite tu plan. Puedes seguir usándolos, pero no crear nuevos.",
+                            "Tiene más usuarios de los que permite su plan. Puede seguir usándolos, pero no crear nuevos.",
                             fontSize = 12.sp,
                             color = AmarilloAdvertencia,
                             fontWeight = FontWeight.SemiBold,
@@ -196,7 +196,7 @@ fun PantallaLicencia(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
-                        "Necesitas conexión a internet para activar. Después la app funciona sin conexión.",
+                        "Necesita conexión a internet para activar. Después la app funciona sin conexión.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -206,7 +206,7 @@ fun PantallaLicencia(
             Tarjeta {
                 Fila("Identificador del teléfono", estado.identificadorDispositivo.ifEmpty { "…" }, monoespaciado = true)
                 Text(
-                    "Compártelo con soporte si te lo piden.",
+                    "Compártalo con soporte si se lo piden.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -223,12 +223,12 @@ private fun TarjetaEstado(situacion: SituacionLicencia) {
         situacion.usaLicenciaAntigua -> Triple(
             "LICENCIA ANTERIOR",
             CelesteInformacion,
-            "Tu licencia anterior sigue vigente hasta ${TextosLicencia.fechaDesdeMs(situacion.antigua?.venceMs)}. " +
-                "Activa tu nueva licencia con la clave que te entregó tu proveedor.",
+            "Su licencia anterior sigue vigente hasta ${TextosLicencia.fechaDesdeMs(situacion.antigua?.venceMs)}. " +
+                "Active su nueva licencia con la clave que le entregó su proveedor.",
         )
         else -> when (val nube = situacion.nube) {
-            is EstadoLicencia.EnCortesia -> Triple("VENCIDA · EN CORTESÍA", AmarilloAdvertencia, "Tu licencia venció. " + TextosLicencia.textoCortesia(nube.diasRestantes))
-            is EstadoLicencia.ActivaPorValidar -> Triple("ACTIVA · POR VALIDAR", AmarilloAdvertencia, "Conéctate a internet para validar tu licencia.")
+            is EstadoLicencia.EnCortesia -> Triple("VENCIDA · EN CORTESÍA", AmarilloAdvertencia, "Su licencia venció. " + TextosLicencia.textoCortesia(nube.diasRestantes))
+            is EstadoLicencia.ActivaPorValidar -> Triple("ACTIVA · POR VALIDAR", AmarilloAdvertencia, "Conéctese a internet para validar su licencia.")
             else -> Triple("ACTIVA", VerdeExito, "Todo en orden.")
         }
     }

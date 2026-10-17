@@ -130,7 +130,7 @@ class UsuarioRepositorio(
             // Si se suministró nueva clave para cambiar
             if (!nuevaClave.isNullOrBlank()) {
                 if (claveActual.isNullOrBlank()) {
-                    return@withContext ResultadoActualizacionPerfil.Error("Ingresa tu contraseña o PIN actual")
+                    return@withContext ResultadoActualizacionPerfil.Error("Ingrese su contraseña o PIN actual")
                 }
                 if (!ClaveLocal.coincide(claveActual.trim(), usuario.clave)) {
                     return@withContext ResultadoActualizacionPerfil.Error("La contraseña actual es incorrecta")

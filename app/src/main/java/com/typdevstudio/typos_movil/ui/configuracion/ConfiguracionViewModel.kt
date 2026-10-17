@@ -344,7 +344,7 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
         if (mac.isNullOrBlank()) {
             _uiState.update {
                 it.copy(
-                    mensajeAlerta = "Selecciona primero una impresora Bluetooth vinculada",
+                    mensajeAlerta = "Seleccione primero una impresora Bluetooth vinculada",
                     esErrorAlerta = true
                 )
             }
@@ -415,7 +415,7 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
                 _uiState.update {
                     it.copy(
                         estaBuscandoActualizaciones = false,
-                        mensajeAlerta = "Sin conexión a Internet. Conéctate a una red Wi-Fi o datos móviles para buscar actualizaciones.",
+                        mensajeAlerta = "Sin conexión a Internet. Conéctese a una red Wi-Fi o datos móviles para buscar actualizaciones.",
                         esErrorAlerta = true
                     )
                 }

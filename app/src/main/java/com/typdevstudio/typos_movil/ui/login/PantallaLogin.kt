@@ -309,7 +309,7 @@ fun PantallaLogin(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "¿Tienes un código de usuario? Activar cuenta",
+                        text = "¿Tiene un código de usuario? Activar cuenta",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = AzulPrimario

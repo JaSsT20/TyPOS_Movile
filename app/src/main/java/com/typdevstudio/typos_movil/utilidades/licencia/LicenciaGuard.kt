@@ -117,8 +117,8 @@ data class SituacionLicencia(
             usuariosActivos == 0 -> null
             !permiteEmitir -> mensajeAccionBloqueada()
             maximo != null && usuariosActivos >= maximo ->
-                "Tu plan permite hasta $maximo ${if (maximo == 1) "usuario" else "usuarios"} y ya tienes $usuariosActivos. " +
-                    "Para agregar más, mejora tu plan con ${BuildConfig.CONTACTO_LICENCIA_NOMBRE} al ${BuildConfig.CONTACTO_LICENCIA_TELEFONO}."
+                "Su plan permite hasta $maximo ${if (maximo == 1) "usuario" else "usuarios"} y ya tiene $usuariosActivos. " +
+                    "Para agregar más, mejore su plan con ${BuildConfig.CONTACTO_LICENCIA_NOMBRE} al ${BuildConfig.CONTACTO_LICENCIA_TELEFONO}."
             else -> null
         }
     }
@@ -128,29 +128,29 @@ data class SituacionLicencia(
         null -> ""
         MotivoRestriccion.SIN_ACTIVAR -> when {
             registroPendiente ->
-                "Tu registro está en revisión. Cuando tu proveedor active tu licencia, la app se activará sola (con internet)."
-            registroRechazado -> mensajeRegistro ?: "Tu registro no fue aprobado. Comunícate con tu proveedor."
-            antigua != null && !antigua.vigente -> "Tu licencia anterior venció. Activa tu nueva licencia para seguir vendiendo."
-            else -> "Este teléfono no tiene una licencia activa. Ingresa tu clave de licencia para empezar a vender."
+                "Su registro está en revisión. Cuando su proveedor active su licencia, la app se activará sola (con internet)."
+            registroRechazado -> mensajeRegistro ?: "Su registro no fue aprobado. Comuníquese con su proveedor."
+            antigua != null && !antigua.vigente -> "Su licencia anterior venció. Active su nueva licencia para seguir vendiendo."
+            else -> "Este teléfono no tiene una licencia activa. Ingrese su clave de licencia para empezar a vender."
         }
         MotivoRestriccion.TOKEN_EXPIRADO ->
-            "Pasaron demasiados días sin validar la licencia. Conéctate a internet y toca «Validar ahora»."
-        MotivoRestriccion.SUSPENDIDA -> "La licencia está suspendida. Comunícate con tu proveedor."
-        MotivoRestriccion.VENCIDA -> "La licencia venció. Renuévala con tu proveedor y luego toca «Validar ahora»."
-        MotivoRestriccion.REVOCADO -> "Este teléfono fue bloqueado en la licencia. Comunícate con tu proveedor."
+            "Pasaron demasiados días sin validar la licencia. Conéctese a internet y toque «Validar ahora»."
+        MotivoRestriccion.SUSPENDIDA -> "La licencia está suspendida. Comuníquese con su proveedor."
+        MotivoRestriccion.VENCIDA -> "La licencia venció. Renuévela con su proveedor y luego toque «Validar ahora»."
+        MotivoRestriccion.REVOCADO -> "Este teléfono fue bloqueado en la licencia. Comuníquese con su proveedor."
         MotivoRestriccion.FIRMA_INVALIDA, MotivoRestriccion.DISPOSITIVO_DISTINTO ->
-            "La licencia guardada no es válida para este teléfono. Vuelve a ingresar tu clave de licencia."
+            "La licencia guardada no es válida para este teléfono. Vuelva a ingresar su clave de licencia."
         MotivoRestriccion.RELOJ_ALTERADO ->
-            "La fecha y hora del teléfono no son correctas. Corrígelas (activa la hora automática) y toca «Validar ahora»."
+            "La fecha y hora del teléfono no son correctas. Corríjalas (active la hora automática) y toque «Validar ahora»."
     }
 
     /** Mensaje para una acción bloqueada por el modo restringido. */
     fun mensajeAccionBloqueada(): String =
-        "Modo solo consulta: ${mensajeRestriccion()} Puedes consultar y respaldar tu información, pero no registrar ni modificar datos."
+        "Modo solo consulta: ${mensajeRestriccion()} Puede consultar y respaldar su información, pero no registrar ni modificar datos."
 
     companion object {
         /** Versión corta de [mensajeAccionBloqueada], para avisos breves (Toast) donde el texto largo se corta. */
-        const val MENSAJE_ACCION_BLOQUEADA_CORTO = "Modo solo consulta: activa o valida la licencia para hacer cambios."
+        const val MENSAJE_ACCION_BLOQUEADA_CORTO = "Modo solo consulta: active o valide la licencia para hacer cambios."
 
         val INICIAL = SituacionLicencia(EstadoLicencia.SinActivar, null, usaLicenciaAntigua = false, verificada = false)
 
@@ -179,7 +179,7 @@ object ModulosLicencia {
     const val CXC = "cxc"
 
     fun mensajeNoIncluido(nombreModulo: String): String =
-        "El módulo $nombreModulo no está incluido en tu plan. Para agregarlo, comunícate con " +
+        "El módulo $nombreModulo no está incluido en su plan. Para agregarlo, comuníquese con " +
             "${BuildConfig.CONTACTO_LICENCIA_NOMBRE} al ${BuildConfig.CONTACTO_LICENCIA_TELEFONO}."
 }
 
@@ -363,7 +363,7 @@ object LicenciaGuard {
                 operacion()
             } catch (e: Exception) {
                 Log.e(ETIQUETA_LOG, "Error inesperado con el registro", e)
-                ResultadoRegistro.SinConexion("Ocurrió un error inesperado. Intenta de nuevo.")
+                ResultadoRegistro.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
             }
         }
         actualizar()
@@ -549,7 +549,7 @@ object LicenciaGuard {
                 operacion()
             } catch (e: Exception) {
                 Log.e(ETIQUETA_LOG, "Error inesperado en una operación de licencia", e)
-                ResultadoLicencia.SinConexion("Ocurrió un error inesperado. Intenta de nuevo.")
+                ResultadoLicencia.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
             }
         }
         actualizar()

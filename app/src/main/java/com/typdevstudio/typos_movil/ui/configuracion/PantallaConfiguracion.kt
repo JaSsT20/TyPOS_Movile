@@ -510,8 +510,8 @@ private fun MenuPrincipalConfiguracion(
             Column {
                 val subLicencia = when {
                     !situacionLicencia.verificada -> "Verificando licencia…"
-                    !situacionLicencia.permiteEmitir -> "Modo solo consulta • Toca para activar o validar"
-                    situacionLicencia.usaLicenciaAntigua -> "Licencia anterior vigente • Activa tu nueva licencia"
+                    !situacionLicencia.permiteEmitir -> "Modo solo consulta • Toque para activar o validar"
+                    situacionLicencia.usaLicenciaAntigua -> "Licencia anterior vigente • Active su nueva licencia"
                     else -> when (situacionLicencia.nube) {
                         is EstadoLicencia.EnCortesia -> "Licencia vencida • En período de cortesía"
                         is EstadoLicencia.ActivaPorValidar -> "Licencia activa • Pendiente de validar"
@@ -640,7 +640,7 @@ private fun SubPantallaApariencia(viewModel: ConfiguracionViewModel, estado: Con
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Selecciona el tema visual de la aplicación:",
+                    text = "Seleccione el tema visual de la aplicación:",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1327,7 +1327,7 @@ private fun SubPantallaImpresora(
                     }
                 } else {
                     Text(
-                        text = "Ninguna impresora vinculada aún. Selecciona un dispositivo de la lista inferior.",
+                        text = "Ninguna impresora vinculada aún. Seleccione un dispositivo de la lista inferior.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

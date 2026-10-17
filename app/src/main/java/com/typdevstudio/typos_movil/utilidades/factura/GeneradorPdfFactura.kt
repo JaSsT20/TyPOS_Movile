@@ -599,7 +599,7 @@ object GeneradorPdfFactura {
             }
             contexto.startActivity(chooser)
         } catch (e: Exception) {
-            Toast.makeText(contexto, "Instala un lector de PDF para ver el archivo", Toast.LENGTH_LONG).show()
+            Toast.makeText(contexto, "Instale un lector de PDF para ver el archivo", Toast.LENGTH_LONG).show()
         }
     }
 }

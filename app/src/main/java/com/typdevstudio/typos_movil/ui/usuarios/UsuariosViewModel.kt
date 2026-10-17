@@ -150,7 +150,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
     private fun validar(f: FormularioUsuario): String? = when {
         f.usuario == null && !SincronizacionUsuarios.nombreValido(f.nombreUsuario) ->
             "El usuario debe tener de 1 a 50 letras, números o . _ @ - (sin espacios)."
-        f.usuario == null && f.nombreCompleto.isBlank() -> "Ingresa el nombre completo."
+        f.usuario == null && f.nombreCompleto.isBlank() -> "Ingrese el nombre completo."
         f.usuario == null && f.nombreCompleto.trim().length > 100 -> "El nombre completo admite hasta 100 caracteres."
         f.clave.trim().length < 4 -> "La contraseña debe tener al menos 4 caracteres."
         f.clave != f.confirmarClave -> "Las contraseñas no coinciden."
@@ -172,7 +172,7 @@ class UsuariosViewModel(application: Application) : AndroidViewModel(application
         val activar = !usuario.estaActivo
         if (!activar && usuario.id == GestorSesion.usuarioActivo.value?.id) {
             _uiState.update { it.copy(seleccionado = null) }
-            mostrarMensaje("No puedes desactivar el usuario con el que iniciaste sesión.", esError = true)
+            mostrarMensaje("No puede desactivar el usuario con el que inició sesión.", esError = true)
             return
         }
         viewModelScope.launch {

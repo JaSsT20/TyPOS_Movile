@@ -51,7 +51,7 @@ fun DialogoConfirmacionSalida(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "¿Qué deseas hacer?",
+                    text = "¿Qué desea hacer?",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -61,7 +61,7 @@ fun DialogoConfirmacionSalida(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Elige si deseas cerrar tu sesión actual, salir de la aplicación o continuar trabajando.",
+                    text = "Elija si desea cerrar su sesión actual, salir de la aplicación o continuar trabajando.",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center

@@ -154,7 +154,7 @@ fun DialogoCobro(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "El monto que estás cobrando ($${String.format("%.2f", montoRecibidoFinal)}) es menor que el total de la venta ($${String.format("%.2f", total)}).",
+                        text = "El monto que está cobrando ($${String.format("%.2f", montoRecibidoFinal)}) es menor que el total de la venta ($${String.format("%.2f", total)}).",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -188,7 +188,7 @@ fun DialogoCobro(
                     }
 
                     Text(
-                        text = "¿Deseas confirmar y procesar la venta con este monto de todas formas?",
+                        text = "¿Desea confirmar y procesar la venta con este monto de todas formas?",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

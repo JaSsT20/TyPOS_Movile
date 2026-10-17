@@ -53,7 +53,7 @@ fun BloqueContactoLicencia(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text("Comunícate con", fontSize = 12.sp, color = GrisTexto)
+            Text("Comuníquese con", fontSize = 12.sp, color = GrisTexto)
             Text(BuildConfig.CONTACTO_LICENCIA_NOMBRE, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AzulPrimario)
             if (telefono.isNotBlank()) {
                 Text(telefono, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = AzulPrimario)
@@ -107,6 +107,6 @@ internal fun abrirWhatsApp(contexto: Context, telefono: String, mensaje: String)
     try {
         contexto.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: Exception) {
-        Toast.makeText(contexto, "No se pudo abrir WhatsApp. Escríbenos al $telefono.", Toast.LENGTH_LONG).show()
+        Toast.makeText(contexto, "No se pudo abrir WhatsApp. Escríbanos al $telefono.", Toast.LENGTH_LONG).show()
     }
 }
