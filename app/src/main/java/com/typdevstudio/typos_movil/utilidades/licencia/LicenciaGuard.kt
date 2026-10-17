@@ -17,6 +17,10 @@ import com.typdevstudio.typos_movil.utilidades.licencia.nube.RepositorioLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoRegistro
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoUsuarios
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoConsultaTransferencia
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoTransferencia
+import com.typdevstudio.typos_movil.utilidades.backup.ReportadorEventosBackup
+import org.json.JSONArray
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +36,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia as EstadoLicenciaAntigua
+
+/** Lo que una copia de seguridad necesita saber del teléfono: su huella y, si tiene, su licencia y token. */
+data class IdentidadBackup(val deviceHash: String, val clave: String?, val token: String?)
 
 /** Lo que importa de la licencia antigua (clave XTEA guardada en Room). */
 data class LicenciaAntigua(val vigente: Boolean, val venceMs: Long)
@@ -313,6 +320,8 @@ object LicenciaGuard {
                 AccionSincronizacion.MIGRAR -> migrarAhora() is ResultadoLicencia.SinConexion
                 AccionSincronizacion.NADA -> false
             }
+            // Con conexión, se aprovecha para enviar los eventos de copias guardados sin internet.
+            if (!sinConexion) ReportadorEventosBackup.enviarPendientes(aplicacion)
             if (sinConexion) ResultadoSincronizacion.SIN_CONEXION else ResultadoSincronizacion.HECHA
         } catch (e: Exception) {
             Log.e(ETIQUETA_LOG, "Error en la sincronización", e)
@@ -474,6 +483,60 @@ object LicenciaGuard {
     }
 
     suspend fun desactivar(): ResultadoLicencia = operar { repositorio.desactivar() }
+
+    // ---------------------------------------------------------------------
+    // Copias de seguridad: identidad del teléfono, transferencia entre teléfonos y eventos para la API
+    // ---------------------------------------------------------------------
+
+    /** `device_hash`, clave y token de este teléfono, para el manifiesto de las copias y sus eventos. */
+    fun identidadParaBackup(): IdentidadBackup? {
+        if (!::repositorio.isInitialized) return null
+        val datos = repositorio.datosGuardados()
+        return IdentidadBackup(repositorio.deviceHashActual(), datos.clave, datos.token)
+    }
+
+    /** Licencia del token de una copia (con la firma verificada), o `null` si no es válido. */
+    fun licenciaDeToken(token: String): String? = if (::repositorio.isInitialized) repositorio.licenciaDeToken(token) else null
+
+    suspend fun consultarTransferencia(tokenOrigen: String, idOperacion: String): ResultadoConsultaTransferencia =
+        withContext(Dispatchers.IO) {
+            try {
+                repositorio.consultarTransferencia(tokenOrigen, idOperacion)
+            } catch (e: Exception) {
+                Log.e(ETIQUETA_LOG, "Error inesperado al consultar la transferencia", e)
+                ResultadoConsultaTransferencia.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
+            }
+        }
+
+    /**
+     * Agrega este teléfono a la licencia de la copia (y desvincula el de origen si hace falta y se permitió).
+     * Al lograrlo, los usuarios del teléfono se ponen al día con la licencia.
+     */
+    suspend fun transferir(tokenOrigen: String, permitirDesvincular: Boolean, idOperacion: String): ResultadoTransferencia {
+        val resultado = withContext(Dispatchers.IO) {
+            try {
+                repositorio.transferir(tokenOrigen, LicenciaViewModel.nombreTelefonoPorDefecto(), permitirDesvincular, idOperacion)
+            } catch (e: Exception) {
+                Log.e(ETIQUETA_LOG, "Error inesperado en la transferencia", e)
+                ResultadoTransferencia.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
+            }
+        }
+        actualizar()
+        if (resultado is ResultadoTransferencia.Exito) sincronizarUsuariosSiHaceFalta(resultado.licencia, forzar = true)
+        return resultado
+    }
+
+    /**
+     * Tras restaurar una copia, los usuarios del teléfono son los de la copia: se olvida la huella aplicada para que
+     * la próxima sincronización los ponga al día con la licencia (manda la licencia).
+     */
+    fun olvidarVersionUsuarios() {
+        if (::repositorio.isInitialized) repositorio.guardarVersionUsuarios(null)
+    }
+
+    /** `true` si la API recibió el lote (o lo rechazó por formato, que no se arregla reintentando). */
+    fun enviarEventosBackup(eventos: JSONArray): Boolean =
+        ::repositorio.isInitialized && repositorio.enviarEventosBackup(eventos)
 
     /** Primeros 16 caracteres del `device_hash` (`XXXX-XXXX-XXXX-XXXX`), para soporte. */
     suspend fun identificadorDispositivo(): String = withContext(Dispatchers.IO) {

@@ -80,7 +80,7 @@ fun DialogoConfirmarEliminacionBackup(
                 )
 
                 Text(
-                    text = "Estás a punto de eliminar permanentemente la siguiente copia de seguridad:",
+                    text = "Está a punto de eliminar permanentemente la siguiente copia de seguridad:",
                     fontSize = 13.sp,
                     color = GrisTexto,
                     textAlign = TextAlign.Center

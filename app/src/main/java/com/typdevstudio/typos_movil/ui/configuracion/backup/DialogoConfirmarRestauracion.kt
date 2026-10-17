@@ -1,26 +1,17 @@
 package com.typdevstudio.typos_movil.ui.configuracion.backup
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.PhonelinkErase
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,122 +22,163 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import com.typdevstudio.typos_movil.ui.componentes.BotonCancelarPos
 import com.typdevstudio.typos_movil.ui.componentes.BotonPos
+import com.typdevstudio.typos_movil.ui.componentes.DialogoPos
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
-import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
-import com.typdevstudio.typos_movil.ui.theme.GrisClaro
 import com.typdevstudio.typos_movil.ui.theme.GrisTexto
 import com.typdevstudio.typos_movil.ui.theme.RojoError
+import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import com.typdevstudio.typos_movil.utilidades.backup.ArchivoBackupUi
+import com.typdevstudio.typos_movil.utilidades.backup.ConfirmacionRestauracion
+import com.typdevstudio.typos_movil.utilidades.backup.VarianteRestauracion
 
+private val NaranjaAviso = Color(0xFFE65100)
+
+/**
+ * Confirmación antes de restaurar. Tres variantes: normal, "este teléfono se agregará a su licencia" (con cupo) y
+ * desvinculación (sin cupo: el otro teléfono queda en modo consulta).
+ */
 @Composable
 fun DialogoConfirmarRestauracion(
-    backup: ArchivoBackupUi,
+    confirmacion: ConfirmacionRestauracion,
     alConfirmar: () -> Unit,
     alDescartar: () -> Unit
 ) {
-    Dialog(onDismissRequest = alDescartar) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp,
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(AmarilloAdvertencia.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFE65100),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+    val backup = confirmacion.backup
+    val reemplazo = "Los datos actuales de este teléfono se reemplazarán por los de la copia."
+    val (icono, titulo, mensaje, textoBoton) = when (val variante = confirmacion.variante) {
+        VarianteRestauracion.Normal -> Cuarteto(
+            Icons.Filled.Warning,
+            "¿Restaurar esta copia?",
+            if (confirmacion.deOtroTelefono) "Esta copia viene de ${backup.nombreOrigen}. $reemplazo" else reemplazo,
+            "Restaurar",
+        )
+        is VarianteRestauracion.AgregarTelefono -> Cuarteto(
+            Icons.Filled.Restore,
+            "¿Restaurar en este teléfono?",
+            "Esta copia viene de ${variante.nombreOrigen}. Este teléfono se agregará a su licencia " +
+                "(${variante.quedariaEn} de ${variante.maximo} teléfonos) y el otro seguirá funcionando. $reemplazo",
+            "Restaurar",
+        )
+        is VarianteRestauracion.Desvincular -> Cuarteto(
+            Icons.Filled.PhonelinkErase,
+            "¿Restaurar en este teléfono?",
+            "Esta copia viene de ${variante.nombreOrigen}. Su licencia permite ${variante.maximo} " +
+                "${if (variante.maximo == 1) "teléfono" else "teléfonos"} y ya está en uso. Al restaurar, " +
+                "${variante.nombreOrigen} se desvinculará de su licencia y quedará en modo consulta: podrá ver sus datos, " +
+                "pero no vender. $reemplazo",
+            "Desvincular y restaurar",
+        )
+    }
 
-                Text(
-                    text = "¿Restaurar Base de Datos?",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-
-                Text(
-                    text = "Se sobreescribirán los datos actuales con los del archivo:",
-                    fontSize = 13.sp,
-                    color = GrisTexto,
-                    textAlign = TextAlign.Center
-                )
-
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = AzulPrimario.copy(alpha = 0.08f),
+    DialogoPos(
+        alDescartar = alDescartar,
+        icono = icono,
+        colorIcono = NaranjaAviso,
+        titulo = titulo,
+        mensaje = mensaje,
+        contenido = {
+            ResumenCopia(backup)
+            Text(
+                text = "Las ventas hechas después de la fecha de la copia no se recuperan. Si tiene datos recientes " +
+                    "en este teléfono que no quiere perder, cree una copia antes de continuar.",
+                fontSize = 11.sp,
+                color = NaranjaAviso,
+                lineHeight = 15.sp,
+                textAlign = TextAlign.Center
+            )
+        },
+        acciones = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                BotonPos(
+                    texto = textoBoton,
+                    icono = Icons.Filled.Restore,
+                    alHacerClic = alConfirmar,
+                    variante = VarianteBoton.PELIGRO,
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = backup.nombreVisual,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AzulPrimario
-                        )
-                        Text(
-                            text = "${backup.fechaFormateada} • ${backup.tamanoFormateado}",
-                            fontSize = 11.sp,
-                            color = GrisTexto
-                        )
-                    }
-                }
-
-                Text(
-                    text = "⚠️ Recomendación: Si tienes ventas o datos recientes que no quieras perder, realiza una copia de seguridad manual antes de continuar.",
-                    fontSize = 11.sp,
-                    color = Color(0xFFE65100),
-                    lineHeight = 15.sp,
-                    textAlign = TextAlign.Center
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedButton(
-                        onClick = alDescartar,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Cancelar", color = GrisTexto, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    BotonPos(
-                        texto = "Restaurar",
-                        icono = Icons.Filled.Restore,
-                        alHacerClic = alConfirmar,
-                        variante = VarianteBoton.PELIGRO,
-                        modifier = Modifier.weight(1.1f)
-                    )
-                }
+                BotonCancelarPos(texto = "Cancelar", alHacerClic = alDescartar)
             }
+        }
+    )
+}
+
+@Composable
+private fun ResumenCopia(backup: ArchivoBackupUi) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = AzulPrimario.copy(alpha = 0.08f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Copia del ${backup.fechaFormateada}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = AzulPrimario,
+                textAlign = TextAlign.Center
+            )
+            Text(text = backup.origenTexto, fontSize = 11.sp, color = GrisTexto, textAlign = TextAlign.Center)
+            backup.resumen?.let { Text(text = it, fontSize = 11.sp, color = GrisTexto, textAlign = TextAlign.Center) }
         }
     }
 }
+
+/** Advertencia antes de compartir: el archivo lleva todos los datos del negocio. */
+@Composable
+fun DialogoAdvertenciaCompartir(
+    alConfirmar: () -> Unit,
+    alDescartar: () -> Unit
+) {
+    DialogoPos(
+        alDescartar = alDescartar,
+        icono = Icons.Filled.Share,
+        colorIcono = AzulPrimario,
+        titulo = "Compartir copia de seguridad",
+        mensaje = "Esta copia contiene todos los datos de su negocio: ventas, productos, fotos y usuarios. " +
+            "Envíela solo a usted mismo o a personas de confianza.",
+        acciones = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                BotonPos(
+                    texto = "Compartir",
+                    icono = Icons.Filled.Share,
+                    alHacerClic = alConfirmar,
+                    variante = VarianteBoton.PRIMARIO,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                BotonCancelarPos(texto = "Cancelar", alHacerClic = alDescartar)
+            }
+        }
+    )
+}
+
+/** Aviso final de la restauración. Al cerrarlo, la app se reinicia para cargar los datos. */
+@Composable
+fun DialogoReinicio(
+    mensaje: String,
+    esError: Boolean,
+    alReiniciar: () -> Unit
+) {
+    DialogoPos(
+        alDescartar = alReiniciar,
+        icono = if (esError) Icons.Filled.Error else Icons.Filled.CheckCircle,
+        colorIcono = if (esError) RojoError else VerdeExito,
+        titulo = if (esError) "No se pudo restaurar" else "¡Copia restaurada!",
+        mensaje = mensaje,
+        acciones = {
+            BotonPos(
+                texto = "Aceptar",
+                alHacerClic = alReiniciar,
+                variante = if (esError) VarianteBoton.PRIMARIO else VarianteBoton.EXITO,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    )
+}
+
+private data class Cuarteto<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
