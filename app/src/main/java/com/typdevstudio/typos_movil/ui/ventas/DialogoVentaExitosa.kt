@@ -51,6 +51,7 @@ import com.typdevstudio.typos_movil.ui.componentes.BotonPos
 import com.typdevstudio.typos_movil.ui.componentes.VarianteBoton
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.Blanco
+import com.typdevstudio.typos_movil.ui.theme.RojoError
 import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -58,6 +59,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DialogoVentaExitosa(
     venta: VentaEntidad?,
+    nombreImpresora: String?,
     alCerrar: () -> Unit,
     alImprimir: (VentaEntidad) -> Unit,
     alCompartirPdf: () -> Unit,
@@ -141,6 +143,13 @@ fun DialogoVentaExitosa(
                     alHacerClic = { alImprimir(venta) },
                     icono = Icons.Filled.Print,
                     variante = VarianteBoton.PRIMARIO
+                )
+
+                Text(
+                    text = if (nombreImpresora != null) "Impresora: $nombreImpresora"
+                    else "No hay impresora guardada en Configuración",
+                    fontSize = 12.sp,
+                    color = if (nombreImpresora != null) MaterialTheme.colorScheme.onSurfaceVariant else RojoError
                 )
 
                 Row(

@@ -168,20 +168,30 @@ fun PantallaVentas(
 
     val contexto = androidx.compose.ui.platform.LocalContext.current
 
+    val estadoImpresion by viewModel.estadoImpresion.collectAsState()
+    val nombreImpresoraGuardada by viewModel.nombreImpresoraGuardada.collectAsState()
+
     // Modal de Venta Exitosa
     DialogoVentaExitosa(
         venta = ultimaVenta,
+        nombreImpresora = nombreImpresoraGuardada,
         alCerrar = { viewModel.cerrarModalVentaExitosa() },
-        alImprimir = {
-            viewModel.imprimirTicketUltimaVenta { resultado ->
-                // Feedback de impresión
-            }
-        },
+        alImprimir = { viewModel.imprimirTicketUltimaVenta() },
         alCompartirPdf = {
             viewModel.compartirFacturaPdf(contexto)
         },
         alVerPdf = {
             viewModel.verFacturaPdf(contexto)
+        }
+    )
+
+    // Modal con el estado de la comunicación con la impresora (va encima del de venta exitosa)
+    DialogoEstadoImpresion(
+        estado = estadoImpresion,
+        alCerrar = { viewModel.cerrarEstadoImpresion() },
+        alReintentar = {
+            viewModel.cerrarEstadoImpresion()
+            viewModel.imprimirTicketUltimaVenta()
         }
     )
 

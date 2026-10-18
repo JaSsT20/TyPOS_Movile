@@ -386,11 +386,28 @@ class ConfiguracionViewModel(application: Application) : AndroidViewModel(applic
 
             when (resultado) {
                 is ResultadoImpresion.Exito -> {
+                    // La factura usa la impresora guardada: si funcionó la prueba, se guarda para no
+                    // quedar imprimiendo bien aquí y sin impresora al facturar.
+                    val guardada = try {
+                        val actual = repositorio.obtenerConfiguracionDirecta()
+                        repositorio.guardarConfiguracion(
+                            actual.copy(
+                                nombreImpresora = estado.nombreImpresora,
+                                direccionMacImpresora = mac,
+                                tamanoPapelImpresora = mmInt,
+                                columnasPersonalizadas = estado.columnasPersonalizadas
+                            )
+                        )
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
                     _uiState.update {
                         it.copy(
                             estaImprimiendoPrueba = false,
-                            mensajeAlerta = "¡Ticket de prueba impreso correctamente!",
-                            esErrorAlerta = false
+                            mensajeAlerta = if (guardada) "¡Ticket de prueba impreso correctamente! La impresora quedó guardada."
+                            else "Ticket de prueba impreso, pero no se pudo guardar la impresora. Pulse \"Guardar Impresora\".",
+                            esErrorAlerta = !guardada
                         )
                     }
                 }

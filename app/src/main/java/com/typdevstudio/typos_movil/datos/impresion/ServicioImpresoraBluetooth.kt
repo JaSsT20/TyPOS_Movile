@@ -21,6 +21,14 @@ sealed interface ResultadoImpresion {
     data class Error(val mensaje: String) : ResultadoImpresion
 }
 
+/** Etapas que atraviesa un trabajo de impresión, para mostrarlas al usuario. */
+enum class EtapaImpresion {
+    CONECTANDO,
+    CONECTADO,
+    ENVIANDO,
+    FINALIZANDO
+}
+
 data class DispositivoBluetoothPos(
     val nombre: String,
     val direccionMac: String
@@ -83,66 +91,83 @@ object ServicioImpresoraBluetooth {
         tamanoPapel: Int,
         configuracion: ConfiguracionNegocioEntidad,
         venta: VentaEntidad,
-        detalles: List<DetalleVentaEntidad>
-    ): ResultadoImpresion = withContext(Dispatchers.IO) {
-        val adaptador = BluetoothAdapter.getDefaultAdapter()
-            ?: return@withContext ResultadoImpresion.Error("El dispositivo no cuenta con Bluetooth")
-
-        if (!adaptador.isEnabled) {
-            return@withContext ResultadoImpresion.Error("El Bluetooth se encuentra apagado. Por favor enciéndalo.")
-        }
-
-        var socket: BluetoothSocket? = null
-        try {
-            val dispositivo = adaptador.getRemoteDevice(direccionMac)
-            socket = dispositivo.createRfcommSocketToServiceRecord(UUID_SPP)
-            socket.connect()
-
-            val flujoSalida: OutputStream = socket.outputStream
-            val bytesTicket = generarBytesTicketVenta(configuracion, venta, detalles)
-
-            flujoSalida.write(bytesTicket)
-            flujoSalida.flush()
-            Thread.sleep(500)
-            socket.close()
-
-            ResultadoImpresion.Exito
-        } catch (e: Exception) {
-            try { socket?.close() } catch (_: Exception) {}
-            ResultadoImpresion.Error("Error al conectar con la impresora: ${e.localizedMessage ?: "Verifique que esté encendida y vinculada"}")
-        }
+        detalles: List<DetalleVentaEntidad>,
+        alCambiarEtapa: (EtapaImpresion) -> Unit = {}
+    ): ResultadoImpresion = enviarAImpresora(direccionMac, alCambiarEtapa) {
+        generarBytesTicketVenta(configuracion, venta, detalles)
     }
 
     suspend fun imprimirTicketPrueba(
         direccionMac: String,
         tamanoPapel: Int,
         configuracion: ConfiguracionNegocioEntidad
+    ): ResultadoImpresion = enviarAImpresora(direccionMac) {
+        generarBytesTicketPrueba(configuracion)
+    }
+
+    /**
+     * Conecta por SPP, envía los bytes y espera a que el Bluetooth termine de transmitirlos antes de cerrar.
+     * Cerrar el socket demasiado pronto corta los tickets largos (la prueba es corta y no lo nota).
+     */
+    @SuppressLint("MissingPermission")
+    private suspend fun enviarAImpresora(
+        direccionMac: String,
+        alCambiarEtapa: (EtapaImpresion) -> Unit = {},
+        generarBytes: () -> ByteArray
     ): ResultadoImpresion = withContext(Dispatchers.IO) {
         val adaptador = BluetoothAdapter.getDefaultAdapter()
-            ?: return@withContext ResultadoImpresion.Error("El dispositivo no tiene Bluetooth")
+            ?: return@withContext ResultadoImpresion.Error("Este teléfono no cuenta con Bluetooth.")
 
         if (!adaptador.isEnabled) {
-            return@withContext ResultadoImpresion.Error("El Bluetooth está apagado")
+            return@withContext ResultadoImpresion.Error("El Bluetooth está apagado. Por favor, enciéndalo e inténtelo de nuevo.")
+        }
+
+        // Se generan antes de conectar para que un error en el ticket no se confunda con uno de conexión.
+        val bytes = try {
+            generarBytes()
+        } catch (e: Exception) {
+            return@withContext ResultadoImpresion.Error("No se pudo preparar el ticket: ${e.localizedMessage ?: e.javaClass.simpleName}")
         }
 
         var socket: BluetoothSocket? = null
         try {
+            alCambiarEtapa(EtapaImpresion.CONECTANDO)
             val dispositivo = adaptador.getRemoteDevice(direccionMac)
+            // La búsqueda de dispositivos activa vuelve lenta o falla la conexión RFCOMM.
+            try { adaptador.cancelDiscovery() } catch (_: SecurityException) {}
+
             socket = dispositivo.createRfcommSocketToServiceRecord(UUID_SPP)
-            socket.connect()
+            try {
+                socket.connect()
+            } catch (e: java.io.IOException) {
+                try { socket.close() } catch (_: Exception) {}
+                // Algunas impresoras portátiles solo aceptan la conexión sin cifrado.
+                socket = dispositivo.createInsecureRfcommSocketToServiceRecord(UUID_SPP)
+                socket.connect()
+            }
+            alCambiarEtapa(EtapaImpresion.CONECTADO)
 
+            alCambiarEtapa(EtapaImpresion.ENVIANDO)
             val flujoSalida: OutputStream = socket.outputStream
-            val bytesPrueba = generarBytesTicketPrueba(configuracion)
-
-            flujoSalida.write(bytesPrueba)
+            flujoSalida.write(bytes)
             flujoSalida.flush()
-            Thread.sleep(500)
+
+            alCambiarEtapa(EtapaImpresion.FINALIZANDO)
+            Thread.sleep((bytes.size * 3L).coerceIn(800L, 6000L))
             socket.close()
 
             ResultadoImpresion.Exito
+        } catch (e: SecurityException) {
+            try { socket?.close() } catch (_: Exception) {}
+            ResultadoImpresion.Error("La aplicación no tiene permiso para usar el Bluetooth. Concédalo desde Configuración > Impresora.")
+        } catch (e: IllegalArgumentException) {
+            ResultadoImpresion.Error("La dirección de la impresora guardada no es válida ($direccionMac). Vuelva a seleccionarla en Configuración.")
         } catch (e: Exception) {
             try { socket?.close() } catch (_: Exception) {}
-            ResultadoImpresion.Error("No se pudo imprimir: ${e.localizedMessage ?: "Error de conexión"}")
+            ResultadoImpresion.Error(
+                "No se pudo comunicar con la impresora. Verifique que esté encendida, con papel y cerca del teléfono." +
+                    "\n\nDetalle: ${e.localizedMessage ?: e.javaClass.simpleName}"
+            )
         }
     }
 
