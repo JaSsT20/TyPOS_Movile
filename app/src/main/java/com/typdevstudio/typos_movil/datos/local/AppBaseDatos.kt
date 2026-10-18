@@ -138,8 +138,30 @@ abstract class AppBaseDatos : RoomDatabase() {
     abstract fun licenciaDao(): LicenciaDao
 
     companion object {
+        /** Debe coincidir con `version` de @Database: una copia con una versión mayor no se puede restaurar. */
+        const val VERSION_BD = 12
+
+        /**
+         * La copia más antigua que se puede restaurar: las anteriores no tienen migración y
+         * `fallbackToDestructiveMigration` borraría los datos al abrirlas.
+         */
+        const val VERSION_MINIMA_RESTAURABLE = 5
+
+        const val NOMBRE_BD = "typos_movil_bd.db"
+
         @Volatile
         private var INSTANCIA: AppBaseDatos? = null
+
+        /**
+         * Cierra la base y olvida la instancia única, para poder reemplazar el archivo al restaurar una copia.
+         * Después de llamarlo, la app debe reiniciarse (otras piezas pueden tener DAOs de la instancia cerrada).
+         */
+        fun cerrarInstancia() {
+            synchronized(this) {
+                INSTANCIA?.close()
+                INSTANCIA = null
+            }
+        }
 
         fun obtenerBaseDatos(contexto: Context): AppBaseDatos {
             return INSTANCIA ?: synchronized(this) {

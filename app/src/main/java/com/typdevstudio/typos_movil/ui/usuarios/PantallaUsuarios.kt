@@ -149,21 +149,21 @@ fun PantallaUsuarios(
                             fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AzulPrimario,
                         )
                         Text(
-                            "Los usuarios son de tu licencia: pueden iniciar sesión en cualquier teléfono de ella. " +
+                            "Los usuarios son de su licencia: pueden iniciar sesión en cualquier teléfono de ella. " +
                                 "Crear o cambiar usuarios necesita internet.",
                             fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (activos > maximo) {
                             Text(
-                                "Tienes más usuarios de los que permite tu plan. Puedes seguir usándolos, pero no crear nuevos.",
+                                "Tiene más usuarios de los que permite su plan. Puede seguir usándolos, pero no crear nuevos.",
                                 fontSize = 12.sp, color = AmarilloAdvertencia, fontWeight = FontWeight.SemiBold,
                             )
                         }
                     } else {
                         Text("Usuarios activos: $activos", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AzulPrimario)
                         Text(
-                            if (estado.conLicencia) "Conéctate a internet para ver el límite de tu plan."
-                            else "Estos usuarios están solo en este teléfono. Cuando actives tu licencia se compartirán con tus demás teléfonos.",
+                            if (estado.conLicencia) "Conéctese a internet para ver el límite de su plan."
+                            else "Estos usuarios están solo en este teléfono. Cuando active su licencia se compartirán con sus demás teléfonos.",
                             fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -216,7 +216,7 @@ private fun FilaUsuario(usuario: UsuarioEntidad, esSesionActual: Boolean, habili
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    usuario.nombreCompleto + if (esSesionActual) " (tú)" else "",
+                    usuario.nombreCompleto + if (esSesionActual) " (usted)" else "",
                     fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -304,8 +304,8 @@ private fun DialogoFormularioUsuario(
         icono = if (esNuevo) Icons.Filled.PersonAdd else Icons.Filled.LockReset,
         colorIcono = if (esNuevo) VerdeExito else AzulPrimario,
         titulo = if (esNuevo) "Nuevo usuario" else "Restablecer contraseña",
-        mensaje = if (esNuevo) "Podrá iniciar sesión en cualquier teléfono de tu licencia."
-        else "Nueva contraseña para @${formulario.usuario?.nombreUsuario}. Dísela al usuario; podrá cambiarla desde su perfil.",
+        mensaje = if (esNuevo) "Podrá iniciar sesión en cualquier teléfono de su licencia."
+        else "Nueva contraseña para @${formulario.usuario?.nombreUsuario}. Désela al usuario; podrá cambiarla desde su perfil.",
         contenido = {
             if (esNuevo) {
                 CampoTextoPos(

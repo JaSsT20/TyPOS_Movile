@@ -148,7 +148,7 @@ fun SubPantallaImportarDatos(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Antes de guardar cualquier dato en la app, tendrás una vista previa completa donde podrás revisar, corregir o editar cada producto directamente en pantalla.",
+                        text = "Antes de guardar cualquier dato en la app, tendrá una vista previa completa donde podrá revisar, corregir o editar cada producto directamente en pantalla.",
                         fontSize = 12.sp,
                         color = GrisTexto,
                         lineHeight = 17.sp

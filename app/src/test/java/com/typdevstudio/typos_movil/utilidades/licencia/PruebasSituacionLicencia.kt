@@ -134,7 +134,7 @@ class PruebasSituacionLicencia {
         assertTrue(SituacionLicencia.combinar(EstadoLicencia.SinActivar, null, true).moduloIncluido(ModulosLicencia.INVENTARIO))
 
         val mensaje = ModulosLicencia.mensajeNoIncluido("Inventario")
-        assertTrue(mensaje.startsWith("El módulo Inventario no está incluido en tu plan."))
+        assertTrue(mensaje.startsWith("El módulo Inventario no está incluido en su plan."))
         assertTrue(mensaje.contains("+1 (849) 359-4927"))
     }
 
@@ -144,12 +144,12 @@ class PruebasSituacionLicencia {
         assertEquals(2, plan.maxUsuarios)
         assertNull(plan.motivoParaNoCrearUsuario(0))
         assertNull(plan.motivoParaNoCrearUsuario(1))
-        assertTrue(plan.motivoParaNoCrearUsuario(2)!!.startsWith("Tu plan permite hasta 2 usuarios y ya tienes 2."))
+        assertTrue(plan.motivoParaNoCrearUsuario(2)!!.startsWith("Su plan permite hasta 2 usuarios y ya tiene 2."))
         // Ya pasado del límite (bajó de plan): tampoco se crean más, pero nada se borra.
-        assertTrue(plan.motivoParaNoCrearUsuario(5)!!.contains("ya tienes 5"))
+        assertTrue(plan.motivoParaNoCrearUsuario(5)!!.contains("ya tiene 5"))
 
         val unUsuario = SituacionLicencia.combinar(EstadoLicencia.Activa(payload.copy(maxUsuarios = 1)), null, true)
-        assertTrue(unUsuario.motivoParaNoCrearUsuario(1)!!.startsWith("Tu plan permite hasta 1 usuario y"))
+        assertTrue(unUsuario.motivoParaNoCrearUsuario(1)!!.startsWith("Su plan permite hasta 1 usuario y"))
 
         // Licencia antigua: sin límite, como hoy.
         val transicion = SituacionLicencia.combinar(EstadoLicencia.SinActivar, antiguaVigente, true)
@@ -178,8 +178,8 @@ class PruebasSituacionLicencia {
         assertEquals("31/12/2026", TextosLicencia.fechaDesdeDia(HoraRD.parsearFecha("2026-12-31")))
         assertEquals("—", TextosLicencia.fechaDesdeMs(null))
         assertTrue(TextosLicencia.textoCortesia(0).startsWith("Hoy es el último día"))
-        assertTrue(TextosLicencia.textoCortesia(1).startsWith("Tienes 1 día "))
-        assertTrue(TextosLicencia.textoCortesia(3).startsWith("Tienes 3 días"))
+        assertTrue(TextosLicencia.textoCortesia(1).startsWith("Tiene 1 día "))
+        assertTrue(TextosLicencia.textoCortesia(3).startsWith("Tiene 3 días"))
         assertEquals("Facturación", TextosLicencia.nombreModulo("facturacion"))
         assertEquals("Cuentas por cobrar", TextosLicencia.nombreModulo("cxc"))
         assertEquals("Reportes", TextosLicencia.nombreModulo("reportes"))

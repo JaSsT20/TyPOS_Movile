@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.typdevstudio.typos_movil.datos.local.AppBaseDatos
 import com.typdevstudio.typos_movil.datos.local.GestorSesion
+import com.typdevstudio.typos_movil.datos.impresion.EtapaImpresion
+import com.typdevstudio.typos_movil.datos.impresion.ResultadoImpresion
+import com.typdevstudio.typos_movil.datos.impresion.ServicioImpresoraBluetooth
 import com.typdevstudio.typos_movil.datos.local.entidades.DetalleVentaEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.ProductoEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.VentaEntidad
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,6 +39,15 @@ data class FormularioCobroUiState(
     val rncCedulaCliente: String = "",
     val mensajeError: String? = null,
     val estaProcesando: Boolean = false
+)
+
+/** Lo que muestra el modal de impresión mientras se habla con la impresora. */
+data class EstadoImpresionUi(
+    val nombreImpresora: String?,
+    val direccionMac: String?,
+    val etapa: EtapaImpresion = EtapaImpresion.CONECTANDO,
+    val terminado: Boolean = false,
+    val mensajeError: String? = null
 )
 
 class VentasViewModel(application: Application) : AndroidViewModel(application) {
@@ -105,6 +118,16 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _mensajeAlerta = MutableStateFlow<String?>(null)
     val mensajeAlerta: StateFlow<String?> = _mensajeAlerta.asStateFlow()
+
+    /** Nombre de la impresora guardada en Configuración, o null si no hay ninguna. */
+    val nombreImpresoraGuardada: StateFlow<String?> = configuracionRepositorio.obtenerConfiguracion()
+        .map { config ->
+            config?.direccionMacImpresora?.takeIf { it.isNotBlank() }?.let { config.nombreImpresora ?: it }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val _estadoImpresion = MutableStateFlow<EstadoImpresionUi?>(null)
+    val estadoImpresion: StateFlow<EstadoImpresionUi?> = _estadoImpresion.asStateFlow()
 
     fun limpiarAlerta() {
         _mensajeAlerta.value = null
@@ -217,7 +240,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                 if (item.producto.id == idProducto) {
                     val nuevaCantidad = item.cantidad + 1.0
                     if (item.producto.controlaStock && nuevaCantidad > item.producto.stock) {
-                        _mensajeAlerta.value = "No puedes agregar más: Stock máximo disponible de '${item.producto.nombre}' es ${item.producto.stock.toInt()}."
+                        _mensajeAlerta.value = "No puede agregar más: Stock máximo disponible de '${item.producto.nombre}' es ${item.producto.stock.toInt()}."
                         item
                     } else {
                         item.copy(cantidad = nuevaCantidad)
@@ -317,7 +340,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
             "Efectivo" -> {
                 montoRecibidoDouble = estadoCobro.montoRecibido.toDoubleOrNull() ?: totalVenta
                 if (montoRecibidoDouble <= 0.0) {
-                    _cobroState.update { it.copy(mensajeError = "Ingresa un monto recibido válido mayor a 0") }
+                    _cobroState.update { it.copy(mensajeError = "Ingrese un monto recibido válido mayor a 0") }
                     return
                 }
                 if (montoRecibidoDouble < totalVenta && !confirmarMenorMonto) {
@@ -346,7 +369,7 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
                 val sumaPagos = montoEfectivo + montoTransferencia + montoCheque
 
                 if (sumaPagos <= 0.0) {
-                    _cobroState.update { it.copy(mensajeError = "Ingresa al menos un monto de pago válido mayor a 0") }
+                    _cobroState.update { it.copy(mensajeError = "Ingrese al menos un monto de pago válido mayor a 0") }
                     return
                 }
                 if (sumaPagos < totalVenta && !confirmarMenorMonto) {
@@ -454,28 +477,50 @@ class VentasViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun imprimirTicketUltimaVenta(alTerminar: (com.typdevstudio.typos_movil.datos.impresion.ResultadoImpresion) -> Unit) {
+    fun imprimirTicketUltimaVenta() {
         val venta = _ultimaVentaRealizada.value ?: return
         val detalles = _detallesUltimaVenta.value
+        // Evita abrir dos conexiones si se pulsa "Imprimir" otra vez mientras imprime.
+        if (_estadoImpresion.value?.terminado == false) return
+        _estadoImpresion.value = EstadoImpresionUi(nombreImpresora = null, direccionMac = null)
 
         viewModelScope.launch {
             val config = configuracionRepositorio.obtenerConfiguracionDirecta()
             val mac = config.direccionMacImpresora
 
             if (mac.isNullOrBlank()) {
-                alTerminar(com.typdevstudio.typos_movil.datos.impresion.ResultadoImpresion.Error("No hay impresora Bluetooth vinculada en Configuración"))
+                _estadoImpresion.value = EstadoImpresionUi(
+                    nombreImpresora = null,
+                    direccionMac = null,
+                    terminado = true,
+                    mensajeError = "No hay ninguna impresora guardada. Vaya a Configuración > Impresora, " +
+                        "seleccione su impresora y pulse Guardar."
+                )
                 return@launch
             }
 
-            val resultado = com.typdevstudio.typos_movil.datos.impresion.ServicioImpresoraBluetooth.imprimirTicketVenta(
+            _estadoImpresion.value = EstadoImpresionUi(nombreImpresora = config.nombreImpresora, direccionMac = mac)
+
+            val resultado = ServicioImpresoraBluetooth.imprimirTicketVenta(
                 direccionMac = mac,
                 tamanoPapel = config.tamanoPapelImpresora,
                 configuracion = config,
                 venta = venta,
-                detalles = detalles
+                detalles = detalles,
+                alCambiarEtapa = { etapa -> _estadoImpresion.update { it?.copy(etapa = etapa) } }
             )
-            alTerminar(resultado)
+
+            _estadoImpresion.update {
+                it?.copy(
+                    terminado = true,
+                    mensajeError = (resultado as? ResultadoImpresion.Error)?.mensaje
+                )
+            }
         }
+    }
+
+    fun cerrarEstadoImpresion() {
+        if (_estadoImpresion.value?.terminado == true) _estadoImpresion.value = null
     }
 
     fun compartirFacturaPdf(contexto: android.content.Context) {

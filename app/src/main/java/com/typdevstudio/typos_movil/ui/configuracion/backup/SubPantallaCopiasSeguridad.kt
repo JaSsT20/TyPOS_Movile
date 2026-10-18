@@ -1,6 +1,9 @@
 package com.typdevstudio.typos_movil.ui.configuracion.backup
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -73,13 +76,29 @@ fun SubPantallaCopiasSeguridad(
 ) {
     val estado by viewModel.uiState.collectAsState()
 
+    // Selector de archivos de Android (no pide permisos): Descargas, WhatsApp, Drive...
+    val selectorArchivo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { viewModel.importarBackup(it) }
+    }
+
     // Diálogo de confirmación para restaurar
-    estado.backupSeleccionadoParaRestaurar?.let { backup ->
+    estado.confirmacion?.let { confirmacion ->
         DialogoConfirmarRestauracion(
-            backup = backup,
+            confirmacion = confirmacion,
             alConfirmar = { viewModel.confirmarRestauracion() },
             alDescartar = { viewModel.cancelarRestauracion() }
         )
+    }
+
+    estado.backupParaCompartir?.let {
+        DialogoAdvertenciaCompartir(
+            alConfirmar = { viewModel.confirmarCompartir() },
+            alDescartar = { viewModel.cancelarCompartir() }
+        )
+    }
+
+    estado.mensajeReinicio?.let { mensaje ->
+        DialogoReinicio(mensaje = mensaje, esError = estado.reinicioEsError, alReiniciar = { viewModel.reiniciarApp() })
     }
 
     // Diálogo de confirmación para eliminar
@@ -136,6 +155,26 @@ fun SubPantallaCopiasSeguridad(
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // Progreso de una restauración (consulta de licencia, transferencia, restauración)
+        if (estado.estaRestaurandoBackup || estado.estaImportando) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = AzulPrimario.copy(alpha = 0.08f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = AzulPrimario)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (estado.estaImportando) "Recibiendo la copia..." else estado.textoProgreso ?: "Un momento...",
+                        color = AzulPrimario,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -210,9 +249,19 @@ fun SubPantallaCopiasSeguridad(
                     texto = "Crear Copia de Seguridad Ahora",
                     icono = Icons.Filled.AddCircle,
                     alHacerClic = { viewModel.crearBackupManual() },
-                    estaHabilitado = !estado.estaCreandoBackup && !estado.estaRestaurandoBackup,
+                    estaHabilitado = !estado.ocupado,
                     estaCargando = estado.estaCreandoBackup,
                     variante = VarianteBoton.PRIMARIO,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                BotonPos(
+                    texto = "Importar Copia",
+                    icono = Icons.Filled.FileOpen,
+                    alHacerClic = { selectorArchivo.launch(arrayOf("*/*")) },
+                    estaHabilitado = !estado.ocupado,
+                    estaCargando = estado.estaImportando,
+                    variante = VarianteBoton.SECUNDARIO,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -262,7 +311,7 @@ fun SubPantallaCopiasSeguridad(
                         color = GrisTexto
                     )
                     Text(
-                        text = "Pulsa el botón de arriba para crear tu primer respaldo.",
+                        text = "Toque el botón de arriba para crear su primera copia, o importe una que le hayan enviado.",
                         fontSize = 12.sp,
                         color = GrisMedio,
                         textAlign = TextAlign.Center
@@ -351,6 +400,23 @@ private fun TarjetaItemBackup(
                             color = GrisTexto
                         )
                     }
+
+                    Text(
+                        text = backup.origenTexto,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = when {
+                            !backup.valida -> RojoError
+                            backup.deEsteTelefono -> GrisTexto
+                            else -> Color(0xFFE65100)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    backup.resumen?.let {
+                        Text(text = it, fontSize = 11.sp, color = GrisTexto, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
 
@@ -380,7 +446,7 @@ private fun TarjetaItemBackup(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Restore,
-                        contentDescription = "Restaurar base de datos",
+                        contentDescription = "Restaurar esta copia",
                         tint = Color(0xFFE65100),
                         modifier = Modifier.size(22.dp)
                     )

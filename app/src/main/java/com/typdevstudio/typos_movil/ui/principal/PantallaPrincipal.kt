@@ -202,7 +202,7 @@ fun PantallaPrincipal(
                         }
 
                         Text(
-                            text = "Toca para ver o editar tu perfil",
+                            text = "Toque para ver o editar su perfil",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -219,7 +219,7 @@ fun PantallaPrincipal(
 
             // Opciones Principales del POS
             Text(
-                text = "¿Qué deseas hacer?",
+                text = "¿Qué desea hacer?",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,

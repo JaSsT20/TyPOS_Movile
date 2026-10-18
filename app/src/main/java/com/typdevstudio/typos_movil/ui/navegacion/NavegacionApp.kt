@@ -100,7 +100,7 @@ fun NavegacionApp() {
                 if (!GestorSesion.esAdministrador()) {
                     Toast.makeText(
                         contexto,
-                        "No hay ningún usuario administrador en este teléfono. Crea uno para proteger esta sección.",
+                        "No hay ningún usuario administrador en este teléfono. Cree uno para proteger esta sección.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -140,7 +140,7 @@ fun NavegacionApp() {
             icono = Icons.Filled.Extension,
             colorIcono = AmarilloAdvertencia,
             titulo = "Módulo no incluido",
-            mensaje = "El módulo $nombreModulo no está incluido en tu plan. Para agregarlo a tu licencia:",
+            mensaje = "El módulo $nombreModulo no está incluido en su plan. Para agregarlo a su licencia:",
             contenido = {
                 BloqueContactoLicencia(
                     mensajeWhatsApp = "Hola, quiero agregar el módulo $nombreModulo a mi licencia de TyPOS Móvil.",

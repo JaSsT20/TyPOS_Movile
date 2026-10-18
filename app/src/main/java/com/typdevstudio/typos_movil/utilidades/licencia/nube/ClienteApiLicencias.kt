@@ -82,6 +82,26 @@ sealed interface RespuestaApi {
     /** Operación de usuarios exitosa: la lista completa y vigente de la licencia. */
     data class Usuarios(val lista: ListaUsuariosRemota) : RespuestaApi
 
+    /** `/eventos/backup/lote`: cuántos se guardaron y cuántos rechazó (los rechazados no se reintentan). */
+    data class LoteEventos(val guardados: Int, val rechazados: Int) : RespuestaApi
+
+    /**
+     * `/transferir/consultar`: qué pasaría al restaurar en este teléfono una copia de otro. Solo lectura.
+     * [requiereDesvincular] = no hay cupo y el teléfono de origen quedaría desvinculado.
+     */
+    data class ConsultaTransferencia(
+        val cliente: String,
+        val yaRegistrado: Boolean,
+        val hayCupo: Boolean,
+        val requiereDesvincular: Boolean,
+        val nombreOrigen: String?,
+        val maxDispositivos: Int,
+        val enUso: Int,
+    ) : RespuestaApi
+
+    /** `/transferir` exitoso: el token de este teléfono (todavía NO verificado) y el teléfono desvinculado, si hubo. */
+    data class Transferencia(val token: String, val versionUsuarios: String?, val desvinculado: String?) : RespuestaApi
+
     /** Error de negocio con el formato único de la API (`ok: false`). */
     data class ErrorNegocio(val codigo: String, val mensaje: String, val estadoHttp: Int) : RespuestaApi
 
@@ -90,7 +110,7 @@ sealed interface RespuestaApi {
 }
 
 /** Qué espera cada endpoint en una respuesta exitosa. */
-enum class TipoRespuesta { TOKEN, OK, USUARIOS, REGISTRO }
+enum class TipoRespuesta { TOKEN, OK, USUARIOS, REGISTRO, LOTE_EVENTOS, CONSULTA_TRANSFERENCIA, TRANSFERENCIA }
 
 /** Datos del negocio que se registra desde la app (los mismos que salen en su factura) y su contacto. */
 data class DatosRegistro(
@@ -273,6 +293,39 @@ class ClienteApiLicencias(
         return post("/usuarios/importar", identificacion(clave, deviceHash).put("usuarios", lista), TipoRespuesta.USUARIOS)
     }
 
+    /** Envía hasta 50 eventos de copias de seguridad juntos (la cola guardada sin internet). */
+    fun enviarEventosBackup(eventos: JSONArray): RespuestaApi =
+        post("/eventos/backup/lote", JSONObject().put("eventos", eventos), TipoRespuesta.LOTE_EVENTOS)
+
+    /** Solo lectura: qué pasaría al restaurar en este teléfono ([deviceHash]) una copia con [tokenOrigen]. */
+    fun consultarTransferencia(tokenOrigen: String, deviceHash: String, idOperacion: String): RespuestaApi =
+        post(
+            "/transferir/consultar",
+            JSONObject().put("token_origen", tokenOrigen).put("device_hash", deviceHash).put("id_operacion", idOperacion),
+            TipoRespuesta.CONSULTA_TRANSFERENCIA,
+        )
+
+    /** Agrega este teléfono a la licencia de la copia; sin cupo y con [permitirDesvincular], desvincula el de origen. */
+    fun transferir(
+        tokenOrigen: String,
+        deviceHash: String,
+        nombreDispositivo: String?,
+        versionApp: String,
+        permitirDesvincular: Boolean,
+        idOperacion: String,
+    ): RespuestaApi =
+        post(
+            "/transferir",
+            JSONObject()
+                .put("token_origen", tokenOrigen)
+                .put("device_hash", deviceHash)
+                .put("nombre_dispositivo", nombreDispositivo ?: JSONObject.NULL)
+                .put("version_app", versionApp)
+                .put("permitir_desvincular", permitirDesvincular)
+                .put("id_operacion", idOperacion),
+            TipoRespuesta.TRANSFERENCIA,
+        )
+
     private fun identificacion(clave: String, deviceHash: String) =
         JSONObject().put("clave", clave).put("device_hash", deviceHash)
 
@@ -297,7 +350,10 @@ class ClienteApiLicencias(
 
     internal fun interpretar(respuesta: RespuestaHttp, tipo: TipoRespuesta): RespuestaApi {
         val codigo = respuesta.codigo
-        if (codigo == 429) return RespuestaApi.FallaRed("Demasiadas solicitudes (HTTP 429).")
+        // 429 es "espere un momento" salvo el límite de transferencias, que es una regla de negocio (llamar a soporte).
+        if (codigo == 429 && !respuesta.cuerpo.contains("\"$CODIGO_LIMITE_TRANSFERENCIAS\"")) {
+            return RespuestaApi.FallaRed("Demasiadas solicitudes (HTTP 429).")
+        }
         if (codigo >= 500) return RespuestaApi.FallaRed("Falla del servidor (HTTP $codigo).")
 
         val json = try {
@@ -330,6 +386,34 @@ class ClienteApiLicencias(
                 } catch (e: IllegalArgumentException) {
                     RespuestaApi.FallaRed("Lista de usuarios no reconocida.")
                 }
+                TipoRespuesta.LOTE_EVENTOS ->
+                    RespuestaApi.LoteEventos(json.optInt("guardados"), json.optJSONArray("rechazados")?.length() ?: 0)
+                TipoRespuesta.CONSULTA_TRANSFERENCIA -> try {
+                    RespuestaApi.ConsultaTransferencia(
+                        cliente = json.optString("cliente"),
+                        yaRegistrado = json.getBoolean("ya_registrado"),
+                        hayCupo = json.getBoolean("hay_cupo"),
+                        requiereDesvincular = json.getBoolean("requiere_desvincular"),
+                        nombreOrigen = json.optJSONObject("dispositivo_origen")?.let { o ->
+                            if (o.isNull("nombre")) null else o.optString("nombre").takeIf { it.isNotBlank() }
+                        },
+                        maxDispositivos = json.getInt("max_dispositivos"),
+                        enUso = json.getInt("en_uso"),
+                    )
+                } catch (e: JSONException) {
+                    RespuestaApi.FallaRed("Consulta de transferencia no reconocida.")
+                }
+                TipoRespuesta.TRANSFERENCIA -> {
+                    val token = json.opt("token") as? String
+                    if (token.isNullOrEmpty()) RespuestaApi.FallaRed("Respuesta sin token.")
+                    else RespuestaApi.Transferencia(
+                        token,
+                        json.opt("version_usuarios") as? String,
+                        json.optJSONObject("dispositivo_desvinculado")?.let { o ->
+                            if (o.isNull("nombre")) "otro teléfono" else o.optString("nombre").ifBlank { "otro teléfono" }
+                        },
+                    )
+                }
             }
         }
 
@@ -343,5 +427,6 @@ class ClienteApiLicencias(
 
     private companion object {
         val ESTADOS_REGISTRO = setOf("pendiente", "rechazado", "asignado")
+        const val CODIGO_LIMITE_TRANSFERENCIAS = "LIMITE_TRANSFERENCIAS"
     }
 }

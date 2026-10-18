@@ -59,6 +59,28 @@ sealed interface ResultadoUsuarios {
     data object SinLicencia : ResultadoUsuarios
 }
 
+/** Restaurar en este teléfono una copia de otro: qué respondió la consulta previa (solo lectura). */
+sealed interface ResultadoConsultaTransferencia {
+    data class Disponible(val consulta: RespuestaApi.ConsultaTransferencia) : ResultadoConsultaTransferencia
+
+    /** [mensaje] viene de la API, para el usuario. */
+    data class Rechazada(val codigo: String, val mensaje: String) : ResultadoConsultaTransferencia
+
+    data class SinConexion(val mensaje: String) : ResultadoConsultaTransferencia
+}
+
+/** Resultado de agregar este teléfono a la licencia de la copia. */
+sealed interface ResultadoTransferencia {
+    /** El token de este teléfono ya está verificado y guardado. [desvinculado]: teléfono que salió de la licencia. */
+    data class Exito(val licencia: ResultadoLicencia.Exito, val desvinculado: String?) : ResultadoTransferencia
+
+    data class Rechazada(val codigo: String, val mensaje: String) : ResultadoTransferencia
+
+    data class SinConexion(val mensaje: String) : ResultadoTransferencia
+
+    data class TokenNoValido(val mensaje: String) : ResultadoTransferencia
+}
+
 /** Bitácora de la licencia. Nunca recibe claves completas ni tokens. */
 interface RegistroLicencia {
     fun info(mensaje: String)
@@ -106,7 +128,8 @@ class RepositorioLicencia(
             }
             is RespuestaApi.FallaRed -> sinConexion("activación", respuesta)
             // Respuestas que no corresponden a este endpoint.
-            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro, is RespuestaApi.LoteEventos, is RespuestaApi.ConsultaTransferencia, is RespuestaApi.Transferencia ->
+                ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -128,7 +151,8 @@ class RepositorioLicencia(
                 ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("migración", respuesta)
-            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro, is RespuestaApi.LoteEventos, is RespuestaApi.ConsultaTransferencia, is RespuestaApi.Transferencia ->
+                ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -183,8 +207,65 @@ class RepositorioLicencia(
             registro.advertencia("registro sin conexión: ${respuesta.detalle}")
             ResultadoRegistro.SinConexion(MENSAJE_SIN_CONEXION)
         }
-        RespuestaApi.Ok, is RespuestaApi.Token, is RespuestaApi.Usuarios -> ResultadoRegistro.SinConexion(MENSAJE_SIN_CONEXION)
+        RespuestaApi.Ok, is RespuestaApi.Token, is RespuestaApi.Usuarios, is RespuestaApi.LoteEventos,
+        is RespuestaApi.ConsultaTransferencia, is RespuestaApi.Transferencia -> ResultadoRegistro.SinConexion(MENSAJE_SIN_CONEXION)
     }
+
+    /** Solo lectura: qué pasaría al restaurar aquí la copia de otro teléfono ([tokenOrigen] viene en la copia). */
+    fun consultarTransferencia(tokenOrigen: String, idOperacion: String): ResultadoConsultaTransferencia =
+        when (val respuesta = cliente.consultarTransferencia(tokenOrigen, deviceHash(), idOperacion)) {
+            is RespuestaApi.ConsultaTransferencia -> ResultadoConsultaTransferencia.Disponible(respuesta)
+            is RespuestaApi.ErrorNegocio -> {
+                registro.advertencia("Consulta de transferencia rechazada: ${respuesta.codigo} (operación $idOperacion)")
+                ResultadoConsultaTransferencia.Rechazada(respuesta.codigo, respuesta.mensaje)
+            }
+            is RespuestaApi.FallaRed -> {
+                registro.advertencia("Consulta de transferencia sin conexión: ${respuesta.detalle}")
+                ResultadoConsultaTransferencia.SinConexion(MENSAJE_SIN_CONEXION)
+            }
+            else -> ResultadoConsultaTransferencia.SinConexion(MENSAJE_SIN_CONEXION)
+        }
+
+    /**
+     * Agrega este teléfono a la licencia de la copia. Si no hay cupo y [permitirDesvincular], el servidor desvincula
+     * el teléfono de origen. El token recibido se verifica y se guarda igual que al activar.
+     */
+    @Synchronized
+    fun transferir(tokenOrigen: String, nombreDispositivo: String?, permitirDesvincular: Boolean, idOperacion: String): ResultadoTransferencia {
+        val respuesta = cliente.transferir(
+            tokenOrigen, deviceHash(), nombreLimpio(nombreDispositivo), versionApp.take(MAXIMO_VERSION), permitirDesvincular, idOperacion,
+        )
+        return when (respuesta) {
+            is RespuestaApi.Transferencia -> when (val resultado = aceptarTokenConSuClave(respuesta.token, "transferencia", respuesta.versionUsuarios)) {
+                is ResultadoLicencia.Exito -> ResultadoTransferencia.Exito(resultado, respuesta.desvinculado)
+                else -> ResultadoTransferencia.TokenNoValido((resultado as? ResultadoLicencia.TokenNoValido)?.mensaje ?: MENSAJE_TOKEN_NO_VALIDO)
+            }
+            is RespuestaApi.ErrorNegocio -> {
+                registro.advertencia("Transferencia rechazada: ${respuesta.codigo} (operación $idOperacion)")
+                ResultadoTransferencia.Rechazada(respuesta.codigo, respuesta.mensaje)
+            }
+            is RespuestaApi.FallaRed -> {
+                registro.advertencia("Transferencia sin conexión: ${respuesta.detalle}")
+                ResultadoTransferencia.SinConexion(MENSAJE_SIN_CONEXION)
+            }
+            else -> ResultadoTransferencia.SinConexion(MENSAJE_SIN_CONEXION)
+        }
+    }
+
+    /** Envía a la API un lote de eventos de copias de seguridad. `true` si la API los recibió (guardados o rechazados). */
+    fun enviarEventosBackup(eventos: org.json.JSONArray): Boolean =
+        when (val respuesta = cliente.enviarEventosBackup(eventos)) {
+            is RespuestaApi.LoteEventos -> {
+                if (respuesta.rechazados > 0) registro.advertencia("Eventos de copia rechazados por la API: ${respuesta.rechazados}")
+                true
+            }
+            // Un error de formato no se arregla reintentando: se descartan para no trabar la cola.
+            is RespuestaApi.ErrorNegocio -> {
+                registro.advertencia("Lote de eventos de copia rechazado: ${respuesta.codigo}")
+                true
+            }
+            else -> false
+        }
 
     /** Para un token cuya clave el teléfono todavía no conoce (migración, registro): se toma del token verificado. */
     private fun aceptarTokenConSuClave(token: String, operacion: String, versionUsuarios: String?): ResultadoLicencia {
@@ -218,7 +299,8 @@ class RepositorioLicencia(
             }
             is RespuestaApi.FallaRed -> sinConexion("validación", respuesta)
             // Respuestas que no corresponden a este endpoint.
-            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            RespuestaApi.Ok, is RespuestaApi.Usuarios, is RespuestaApi.Registro, is RespuestaApi.LoteEventos, is RespuestaApi.ConsultaTransferencia, is RespuestaApi.Transferencia ->
+                ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -235,7 +317,8 @@ class RepositorioLicencia(
                 else -> ResultadoLicencia.Rechazada(respuesta.codigo, respuesta.mensaje)
             }
             is RespuestaApi.FallaRed -> sinConexion("desactivación", respuesta)
-            is RespuestaApi.Token, is RespuestaApi.Usuarios, is RespuestaApi.Registro -> ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
+            is RespuestaApi.Token, is RespuestaApi.Usuarios, is RespuestaApi.Registro, is RespuestaApi.LoteEventos, is RespuestaApi.ConsultaTransferencia, is RespuestaApi.Transferencia ->
+                ResultadoLicencia.SinConexion(MENSAJE_SIN_CONEXION)
         }
     }
 
@@ -312,6 +395,10 @@ class RepositorioLicencia(
     /** `device_hash` de este teléfono. */
     fun deviceHashActual(): String = deviceHash()
 
+    /** Licencia que dice el token de una copia (firma del servidor verificada), o `null` si no es válido. */
+    fun licenciaDeToken(token: String): String? =
+        (verificador.verificar(token) as? ResultadoVerificacion.Valido)?.payload?.licencia
+
     /** Verifica el token recibido (firma, clave, dispositivo y reloj) y solo entonces lo guarda. */
     private fun aceptarToken(clave: String, token: String, operacion: String, versionUsuarios: String? = null): ResultadoLicencia {
         val ahora = reloj()
@@ -359,11 +446,11 @@ class RepositorioLicencia(
         private const val ESTADO_ASIGNADO = "asignado"
 
         private const val MENSAJE_SIN_CONEXION =
-            "No se pudo conectar con el servidor de licencias. Revisa tu conexión a internet e intenta de nuevo."
+            "No se pudo conectar con el servidor de licencias. Revise su conexión a internet e inténtelo de nuevo."
         private const val MENSAJE_TOKEN_NO_VALIDO =
-            "La respuesta del servidor de licencias no es válida para este teléfono. Actualiza la app o contacta a soporte."
+            "La respuesta del servidor de licencias no es válida para este teléfono. Actualice la app o contacte a soporte."
         private const val MENSAJE_RELOJ =
-            "La fecha y hora del teléfono no son correctas. Corrígelas (activa la hora automática) e intenta de nuevo."
+            "La fecha y hora del teléfono no son correctas. Corríjalas (active la hora automática) e inténtelo de nuevo."
 
         /** Mayúsculas y sin espacios, como la normaliza el servidor. */
         fun normalizarClave(clave: String): String = clave.filterNot { it.isWhitespace() }.uppercase()

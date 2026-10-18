@@ -22,11 +22,11 @@ object TextosLicencia {
         return "$d/$mes/$anio"
     }
 
-    /** "Tu licencia venció, tienes X días". */
+    /** "Su licencia venció, tiene X días". */
     fun textoCortesia(diasRestantes: Int): String = when {
         diasRestantes <= 0 -> "Hoy es el último día para renovarla antes de que la app quede en modo solo consulta."
-        diasRestantes == 1 -> "Tienes 1 día para renovarla antes de que la app quede en modo solo consulta."
-        else -> "Tienes $diasRestantes días para renovarla antes de que la app quede en modo solo consulta."
+        diasRestantes == 1 -> "Tiene 1 día para renovarla antes de que la app quede en modo solo consulta."
+        else -> "Tiene $diasRestantes días para renovarla antes de que la app quede en modo solo consulta."
     }
 
     /** "3 de 10 permitidos" (o solo el límite si todavía no se contaron). */

@@ -106,7 +106,7 @@ object GestorUsuarios : UsuariosLicencia {
             val vigente = usuarioDao.obtenerPorId(actual.id)
             if (vigente == null || !vigente.estaActivo) {
                 GestorSesion.cerrarPorLicencia(
-                    "Tu usuario fue desactivado. Si crees que es un error, habla con el administrador del negocio."
+                    "Su usuario fue desactivado. Si cree que es un error, hable con el administrador del negocio."
                 )
             } else {
                 GestorSesion.iniciarSesion(vigente)
@@ -125,7 +125,7 @@ object GestorUsuarios : UsuariosLicencia {
                 } catch (e: Exception) {
                     // Nunca debe cerrar la app (el capturador global mata el proceso).
                     Log.e(ETIQUETA_LOG, "Error inesperado con los usuarios", e)
-                    ResultadoUsuarios.SinConexion("Ocurrió un error inesperado. Intenta de nuevo.")
+                    ResultadoUsuarios.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
                 }
             }
         }

@@ -69,7 +69,7 @@ fun TarjetaBienvenidaSinUsuarios(estado: BienvenidaUiState, viewModel: LoginView
         ) {
             Text("¡Bienvenido!", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Text(
-                "Este teléfono todavía no tiene usuarios. ¿Cómo quieres empezar?",
+                "Este teléfono todavía no tiene usuarios. ¿Cómo quiere empezar?",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -93,7 +93,7 @@ fun TarjetaBienvenidaSinUsuarios(estado: BienvenidaUiState, viewModel: LoginView
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                "Si es la primera vez: registra tu negocio y crea tu usuario. Tu proveedor activará tu licencia y la " +
+                "Si es la primera vez: registre su negocio y cree su usuario. Su proveedor activará su licencia y la " +
                     "app se activará sola.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -107,7 +107,7 @@ fun TarjetaBienvenidaSinUsuarios(estado: BienvenidaUiState, viewModel: LoginView
                 modifier = Modifier.fillMaxWidth()
             )
             Text(
-                "Si tu negocio ya usa TyPOS en otro teléfono: activa la licencia y entra con tu usuario de siempre.",
+                "Si su negocio ya usa TyPOS en otro teléfono: active la licencia y entre con su usuario de siempre.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -135,8 +135,8 @@ fun DialogoRegistroEnviado(estado: BienvenidaUiState, viewModel: LoginViewModel)
         icono = Icons.Filled.MarkEmailRead,
         colorIcono = VerdeExito,
         titulo = "¡Registro enviado!",
-        mensaje = "Recibimos tu registro. Mientras tu proveedor activa tu licencia, la app queda en modo consulta; " +
-            "cuando esté lista se activará sola. Avísanos por WhatsApp para activarla más rápido.",
+        mensaje = "Recibimos su registro. Mientras su proveedor activa su licencia, la app queda en modo consulta; " +
+            "cuando esté lista se activará sola. Avísenos por WhatsApp para activarla más rápido.",
         acciones = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 BotonPos(
@@ -168,9 +168,9 @@ private fun DialogoRegistrarNegocio(estado: BienvenidaUiState, viewModel: LoginV
         icono = Icons.Filled.Storefront,
         colorIcono = AzulPrimario,
         titulo = "Registrar mi negocio",
-        mensaje = "Necesitas internet. Los datos del negocio son los que saldrán en tus facturas.",
+        mensaje = "Necesita internet. Los datos del negocio son los que saldrán en sus facturas.",
         contenido = {
-            SeccionFormulario("Tu negocio")
+            SeccionFormulario("Su negocio")
             CampoTextoPos(
                 valor = estado.nombreNegocio,
                 alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(nombreNegocio = texto.take(200)) } },
@@ -227,7 +227,7 @@ private fun DialogoRegistrarNegocio(estado: BienvenidaUiState, viewModel: LoginV
                 opcionesTeclado = KeyboardOptions(keyboardType = KeyboardType.Phone),
             )
 
-            SeccionFormulario("Tu usuario (administrador)")
+            SeccionFormulario("Su usuario (administrador)")
             CampoTextoPos(
                 valor = estado.nombreUsuario,
                 alCambiarValor = { texto -> viewModel.editarBienvenida { it.copy(nombreUsuario = texto.take(50)) } },
@@ -274,7 +274,7 @@ private fun DialogoActivarLicencia(estado: BienvenidaUiState, viewModel: LoginVi
         icono = Icons.Filled.Verified,
         colorIcono = VerdeExito,
         titulo = "Activar licencia",
-        mensaje = "Escribe la clave que te entregó tu proveedor. Se descargarán los usuarios de tu negocio. Necesitas internet.",
+        mensaje = "Escriba la clave que le entregó su proveedor. Se descargarán los usuarios de su negocio. Necesita internet.",
         contenido = {
             CampoTextoPos(
                 valor = estado.claveLicencia,

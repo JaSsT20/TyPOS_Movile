@@ -257,7 +257,7 @@ class ProductoViewModel(application: Application) : AndroidViewModel(application
         }
 
         if (precioVentaDouble == null || precioVentaDouble <= 0.0) {
-            errorPrecioVenta = "Ingresa un precio de venta válido (> 0)"
+            errorPrecioVenta = "Ingrese un precio de venta válido (> 0)"
             hayError = true
         }
 

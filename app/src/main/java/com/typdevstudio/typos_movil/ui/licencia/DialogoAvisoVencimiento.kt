@@ -69,13 +69,13 @@ fun DialogoAvisoVencimiento() {
         alDescartar = cerrar,
         icono = if (esHoy) Icons.Filled.EventBusy else Icons.Filled.Event,
         colorIcono = if (esHoy) RojoError else AmarilloAdvertencia,
-        titulo = if (esHoy) "Tu licencia vence hoy" else "Tu licencia está por vencer",
+        titulo = if (esHoy) "Su licencia vence hoy" else "Su licencia está por vencer",
         mensaje = if (esHoy) {
-            "Tu licencia de TyPOS Móvil vence hoy, $fecha. Comunícate hoy mismo para renovarla." +
-                if (diasCortesia > 0) " Después tendrás $diasCortesia días de cortesía antes de que la app quede en modo solo consulta." else ""
+            "Su licencia de TyPOS Móvil vence hoy, $fecha. Comuníquese hoy mismo para renovarla." +
+                if (diasCortesia > 0) " Después tendrá $diasCortesia días de cortesía antes de que la app quede en modo solo consulta." else ""
         } else {
             val dias = if (aviso.diasRestantes == 1) "1 día" else "${aviso.diasRestantes} días"
-            "Tu licencia de TyPOS Móvil vence el $fecha (en $dias). Renuévala a tiempo para seguir vendiendo sin interrupciones."
+            "Su licencia de TyPOS Móvil vence el $fecha (en $dias). Renuévela a tiempo para seguir vendiendo sin interrupciones."
         },
         contenido = {
             BloqueContactoLicencia(

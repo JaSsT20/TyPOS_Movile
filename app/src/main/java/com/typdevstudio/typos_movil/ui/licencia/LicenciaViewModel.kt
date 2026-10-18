@@ -61,7 +61,7 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
         val estado = _uiState.value
         val clave = claveNormalizada(estado.claveIngresada)
         if (clave == null) {
-            _uiState.update { it.copy(mensaje = "Ingresa la clave completa: 12 letras o números (XXXX-XXXX-XXXX).", esError = true) }
+            _uiState.update { it.copy(mensaje = "Ingrese la clave completa: 12 letras o números (XXXX-XXXX-XXXX).", esError = true) }
             return
         }
         _uiState.update { it.copy(estaActivando = true, claveIngresada = clave, mensaje = null) }
@@ -72,7 +72,7 @@ class LicenciaViewModel(application: Application) : AndroidViewModel(application
                 it.copy(
                     estaActivando = false,
                     claveIngresada = if (exito) "" else it.claveIngresada,
-                    mensaje = mensajeDe(resultado, "¡Licencia activada! Ya puedes usar TyPOS Móvil con normalidad."),
+                    mensaje = mensajeDe(resultado, "¡Licencia activada! Ya puede usar TyPOS Móvil con normalidad."),
                     esError = !exito,
                 )
             }

@@ -226,7 +226,7 @@ fun DialogoPerfilUsuario(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "Personaliza tus datos de acceso",
+                            text = "Personalice sus datos de acceso",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -535,11 +535,11 @@ fun DialogoPerfilUsuario(
 
                         if (cambiarClave) {
                             if (claveActual.trim().isBlank()) {
-                                errorClaveActual = "Ingresa tu contraseña actual"
+                                errorClaveActual = "Ingrese su contraseña actual"
                                 hayError = true
                             }
                             if (nuevaClave.trim().isBlank()) {
-                                errorNuevaClave = "Ingresa la nueva contraseña"
+                                errorNuevaClave = "Ingrese la nueva contraseña"
                                 hayError = true
                             } else if (nuevaClave.trim().length < 4) {
                                 errorNuevaClave = "Mínimo 4 caracteres"

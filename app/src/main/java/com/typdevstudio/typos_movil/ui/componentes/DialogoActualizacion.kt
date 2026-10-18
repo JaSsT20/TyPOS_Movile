@@ -305,7 +305,7 @@ fun DialogoActualizacion(
                 // BOTONES DE ACCIÓN
                 if (progreso.estaDescargando) {
                     Text(
-                        text = "Por favor espera mientras se descarga el paquete de actualización...",
+                        text = "Por favor espere mientras se descarga el paquete de actualización...",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center

@@ -91,9 +91,9 @@ private fun avisoPara(situacion: SituacionLicencia): Aviso? {
     }
     if (situacion.usaLicenciaAntigua) {
         return Aviso(
-            titulo = "Activa tu nueva licencia",
-            texto = "Tu licencia actual sigue funcionando hasta ${TextosLicencia.fechaDesdeMs(situacion.antigua?.venceMs)}. " +
-                "Ingresa la clave de tu nueva licencia cuando la recibas.",
+            titulo = "Active su nueva licencia",
+            texto = "Su licencia actual sigue funcionando hasta ${TextosLicencia.fechaDesdeMs(situacion.antigua?.venceMs)}. " +
+                "Ingrese la clave de su nueva licencia cuando la reciba.",
             color = CelesteInformacion,
             icono = Icons.Filled.Info,
             textoBotonLicencia = "Activar",
@@ -102,7 +102,7 @@ private fun avisoPara(situacion: SituacionLicencia): Aviso? {
     }
     return when (val estado = situacion.nube) {
         is EstadoLicencia.EnCortesia -> Aviso(
-            titulo = "Tu licencia venció",
+            titulo = "Su licencia venció",
             texto = TextosLicencia.textoCortesia(estado.diasRestantes),
             color = AmarilloAdvertencia,
             icono = Icons.Filled.Warning,
@@ -110,8 +110,8 @@ private fun avisoPara(situacion: SituacionLicencia): Aviso? {
             mostrarValidar = true,
         )
         is EstadoLicencia.ActivaPorValidar -> Aviso(
-            titulo = "Valida tu licencia",
-            texto = "Conéctate a internet para validar tu licencia.",
+            titulo = "Valide su licencia",
+            texto = "Conéctese a internet para validar su licencia.",
             color = AmarilloAdvertencia,
             icono = Icons.Filled.Warning,
             textoBotonLicencia = "Ver licencia",
@@ -211,9 +211,9 @@ fun BannerLicencia(
 
 private fun mensajeDeRegistro(resultado: ResultadoRegistro): String = when (resultado) {
     is ResultadoRegistro.Asignado ->
-        if (resultado.licencia is ResultadoLicencia.Exito) "¡Tu licencia está lista! Ya puedes vender."
+        if (resultado.licencia is ResultadoLicencia.Exito) "¡Su licencia está lista! Ya puede vender."
         else LicenciaViewModel.mensajeDe(resultado.licencia, "")
-    is ResultadoRegistro.Pendiente -> "Tu registro sigue en revisión. Te avisaremos cuando tu licencia esté lista."
+    is ResultadoRegistro.Pendiente -> "Su registro sigue en revisión. Le avisaremos cuando su licencia esté lista."
     is ResultadoRegistro.Rechazado -> resultado.mensaje
     is ResultadoRegistro.Rechazada -> resultado.mensaje
     is ResultadoRegistro.SinConexion -> resultado.mensaje

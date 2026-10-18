@@ -17,6 +17,10 @@ import com.typdevstudio.typos_movil.utilidades.licencia.nube.RepositorioLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoLicencia
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoRegistro
 import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoUsuarios
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoConsultaTransferencia
+import com.typdevstudio.typos_movil.utilidades.licencia.nube.ResultadoTransferencia
+import com.typdevstudio.typos_movil.utilidades.backup.ReportadorEventosBackup
+import org.json.JSONArray
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,6 +36,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import com.typdevstudio.typos_movil.datos.repositorio.EstadoLicencia as EstadoLicenciaAntigua
+
+/** Lo que una copia de seguridad necesita saber del teléfono: su huella y, si tiene, su licencia y token. */
+data class IdentidadBackup(val deviceHash: String, val clave: String?, val token: String?)
 
 /** Lo que importa de la licencia antigua (clave XTEA guardada en Room). */
 data class LicenciaAntigua(val vigente: Boolean, val venceMs: Long)
@@ -110,8 +117,8 @@ data class SituacionLicencia(
             usuariosActivos == 0 -> null
             !permiteEmitir -> mensajeAccionBloqueada()
             maximo != null && usuariosActivos >= maximo ->
-                "Tu plan permite hasta $maximo ${if (maximo == 1) "usuario" else "usuarios"} y ya tienes $usuariosActivos. " +
-                    "Para agregar más, mejora tu plan con ${BuildConfig.CONTACTO_LICENCIA_NOMBRE} al ${BuildConfig.CONTACTO_LICENCIA_TELEFONO}."
+                "Su plan permite hasta $maximo ${if (maximo == 1) "usuario" else "usuarios"} y ya tiene $usuariosActivos. " +
+                    "Para agregar más, mejore su plan con ${BuildConfig.CONTACTO_LICENCIA_NOMBRE} al ${BuildConfig.CONTACTO_LICENCIA_TELEFONO}."
             else -> null
         }
     }
@@ -121,29 +128,30 @@ data class SituacionLicencia(
         null -> ""
         MotivoRestriccion.SIN_ACTIVAR -> when {
             registroPendiente ->
-                "Tu registro está en revisión. Cuando tu proveedor active tu licencia, la app se activará sola (con internet)."
-            registroRechazado -> mensajeRegistro ?: "Tu registro no fue aprobado. Comunícate con tu proveedor."
-            antigua != null && !antigua.vigente -> "Tu licencia anterior venció. Activa tu nueva licencia para seguir vendiendo."
-            else -> "Este teléfono no tiene una licencia activa. Ingresa tu clave de licencia para empezar a vender."
+                "Su registro está en revisión. Cuando su proveedor active su licencia, la app se activará sola (con internet)."
+            registroRechazado -> mensajeRegistro ?: "Su registro no fue aprobado. Comuníquese con su proveedor."
+            antigua != null && !antigua.vigente -> "Su licencia anterior venció. Active su nueva licencia para seguir vendiendo."
+            else -> "Este teléfono no tiene una licencia activa. Ingrese su clave de licencia para empezar a vender."
         }
         MotivoRestriccion.TOKEN_EXPIRADO ->
-            "Pasaron demasiados días sin validar la licencia. Conéctate a internet y toca «Validar ahora»."
-        MotivoRestriccion.SUSPENDIDA -> "La licencia está suspendida. Comunícate con tu proveedor."
-        MotivoRestriccion.VENCIDA -> "La licencia venció. Renuévala con tu proveedor y luego toca «Validar ahora»."
-        MotivoRestriccion.REVOCADO -> "Este teléfono fue bloqueado en la licencia. Comunícate con tu proveedor."
+            "Pasaron demasiados días sin validar la licencia. Conéctese a internet y toque «Validar ahora»."
+        MotivoRestriccion.SUSPENDIDA -> "La licencia está suspendida. Comuníquese con su proveedor."
+        MotivoRestriccion.VENCIDA -> "La licencia venció. Renuévela con su proveedor y luego toque «Validar ahora»."
+        MotivoRestriccion.REVOCADO ->
+            "Este teléfono fue desvinculado de la licencia. Para volver a vender, comuníquese con su proveedor."
         MotivoRestriccion.FIRMA_INVALIDA, MotivoRestriccion.DISPOSITIVO_DISTINTO ->
-            "La licencia guardada no es válida para este teléfono. Vuelve a ingresar tu clave de licencia."
+            "La licencia guardada no es válida para este teléfono. Vuelva a ingresar su clave de licencia."
         MotivoRestriccion.RELOJ_ALTERADO ->
-            "La fecha y hora del teléfono no son correctas. Corrígelas (activa la hora automática) y toca «Validar ahora»."
+            "La fecha y hora del teléfono no son correctas. Corríjalas (active la hora automática) y toque «Validar ahora»."
     }
 
     /** Mensaje para una acción bloqueada por el modo restringido. */
     fun mensajeAccionBloqueada(): String =
-        "Modo solo consulta: ${mensajeRestriccion()} Puedes consultar y respaldar tu información, pero no registrar ni modificar datos."
+        "Modo solo consulta: ${mensajeRestriccion()} Puede consultar y respaldar su información, pero no registrar ni modificar datos."
 
     companion object {
         /** Versión corta de [mensajeAccionBloqueada], para avisos breves (Toast) donde el texto largo se corta. */
-        const val MENSAJE_ACCION_BLOQUEADA_CORTO = "Modo solo consulta: activa o valida la licencia para hacer cambios."
+        const val MENSAJE_ACCION_BLOQUEADA_CORTO = "Modo solo consulta: active o valide la licencia para hacer cambios."
 
         val INICIAL = SituacionLicencia(EstadoLicencia.SinActivar, null, usaLicenciaAntigua = false, verificada = false)
 
@@ -172,7 +180,7 @@ object ModulosLicencia {
     const val CXC = "cxc"
 
     fun mensajeNoIncluido(nombreModulo: String): String =
-        "El módulo $nombreModulo no está incluido en tu plan. Para agregarlo, comunícate con " +
+        "El módulo $nombreModulo no está incluido en su plan. Para agregarlo, comuníquese con " +
             "${BuildConfig.CONTACTO_LICENCIA_NOMBRE} al ${BuildConfig.CONTACTO_LICENCIA_TELEFONO}."
 }
 
@@ -313,6 +321,8 @@ object LicenciaGuard {
                 AccionSincronizacion.MIGRAR -> migrarAhora() is ResultadoLicencia.SinConexion
                 AccionSincronizacion.NADA -> false
             }
+            // Con conexión, se aprovecha para enviar los eventos de copias guardados sin internet.
+            if (!sinConexion) ReportadorEventosBackup.enviarPendientes(aplicacion)
             if (sinConexion) ResultadoSincronizacion.SIN_CONEXION else ResultadoSincronizacion.HECHA
         } catch (e: Exception) {
             Log.e(ETIQUETA_LOG, "Error en la sincronización", e)
@@ -354,7 +364,7 @@ object LicenciaGuard {
                 operacion()
             } catch (e: Exception) {
                 Log.e(ETIQUETA_LOG, "Error inesperado con el registro", e)
-                ResultadoRegistro.SinConexion("Ocurrió un error inesperado. Intenta de nuevo.")
+                ResultadoRegistro.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
             }
         }
         actualizar()
@@ -475,6 +485,60 @@ object LicenciaGuard {
 
     suspend fun desactivar(): ResultadoLicencia = operar { repositorio.desactivar() }
 
+    // ---------------------------------------------------------------------
+    // Copias de seguridad: identidad del teléfono, transferencia entre teléfonos y eventos para la API
+    // ---------------------------------------------------------------------
+
+    /** `device_hash`, clave y token de este teléfono, para el manifiesto de las copias y sus eventos. */
+    fun identidadParaBackup(): IdentidadBackup? {
+        if (!::repositorio.isInitialized) return null
+        val datos = repositorio.datosGuardados()
+        return IdentidadBackup(repositorio.deviceHashActual(), datos.clave, datos.token)
+    }
+
+    /** Licencia del token de una copia (con la firma verificada), o `null` si no es válido. */
+    fun licenciaDeToken(token: String): String? = if (::repositorio.isInitialized) repositorio.licenciaDeToken(token) else null
+
+    suspend fun consultarTransferencia(tokenOrigen: String, idOperacion: String): ResultadoConsultaTransferencia =
+        withContext(Dispatchers.IO) {
+            try {
+                repositorio.consultarTransferencia(tokenOrigen, idOperacion)
+            } catch (e: Exception) {
+                Log.e(ETIQUETA_LOG, "Error inesperado al consultar la transferencia", e)
+                ResultadoConsultaTransferencia.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
+            }
+        }
+
+    /**
+     * Agrega este teléfono a la licencia de la copia (y desvincula el de origen si hace falta y se permitió).
+     * Al lograrlo, los usuarios del teléfono se ponen al día con la licencia.
+     */
+    suspend fun transferir(tokenOrigen: String, permitirDesvincular: Boolean, idOperacion: String): ResultadoTransferencia {
+        val resultado = withContext(Dispatchers.IO) {
+            try {
+                repositorio.transferir(tokenOrigen, LicenciaViewModel.nombreTelefonoPorDefecto(), permitirDesvincular, idOperacion)
+            } catch (e: Exception) {
+                Log.e(ETIQUETA_LOG, "Error inesperado en la transferencia", e)
+                ResultadoTransferencia.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
+            }
+        }
+        actualizar()
+        if (resultado is ResultadoTransferencia.Exito) sincronizarUsuariosSiHaceFalta(resultado.licencia, forzar = true)
+        return resultado
+    }
+
+    /**
+     * Tras restaurar una copia, los usuarios del teléfono son los de la copia: se olvida la huella aplicada para que
+     * la próxima sincronización los ponga al día con la licencia (manda la licencia).
+     */
+    fun olvidarVersionUsuarios() {
+        if (::repositorio.isInitialized) repositorio.guardarVersionUsuarios(null)
+    }
+
+    /** `true` si la API recibió el lote (o lo rechazó por formato, que no se arregla reintentando). */
+    fun enviarEventosBackup(eventos: JSONArray): Boolean =
+        ::repositorio.isInitialized && repositorio.enviarEventosBackup(eventos)
+
     /** Primeros 16 caracteres del `device_hash` (`XXXX-XXXX-XXXX-XXXX`), para soporte. */
     suspend fun identificadorDispositivo(): String = withContext(Dispatchers.IO) {
         repositorio.deviceHashActual().take(16).uppercase().chunked(4).joinToString("-")
@@ -486,7 +550,7 @@ object LicenciaGuard {
                 operacion()
             } catch (e: Exception) {
                 Log.e(ETIQUETA_LOG, "Error inesperado en una operación de licencia", e)
-                ResultadoLicencia.SinConexion("Ocurrió un error inesperado. Intenta de nuevo.")
+                ResultadoLicencia.SinConexion("Ocurrió un error inesperado. Inténtelo de nuevo.")
             }
         }
         actualizar()

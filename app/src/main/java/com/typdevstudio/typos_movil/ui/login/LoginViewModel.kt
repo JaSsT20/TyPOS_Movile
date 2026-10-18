@@ -165,7 +165,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 errorUsuario = null,
                 errorClave = null,
                 mensajeErrorGeneral = null,
-                mensajeExito = "¡Usuario '$nombreUsuario' activado con éxito! Ingresa tu contraseña para entrar."
+                mensajeExito = "¡Usuario '$nombreUsuario' activado con éxito! Ingrese su contraseña para entrar."
             )
         }
     }
@@ -180,12 +180,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         var errorClave: String? = null
 
         if (usuarioTrim.isEmpty()) {
-            errorUsuario = "Ingresa tu usuario"
+            errorUsuario = "Ingrese su usuario"
             hayError = true
         }
 
         if (claveTrim.isEmpty()) {
-            errorClave = "Ingresa tu contraseña o PIN"
+            errorClave = "Ingrese su contraseña o PIN"
             hayError = true
         }
 
@@ -260,12 +260,12 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun registrarNegocio() {
         val f = _bienvenida.value
         val error = when {
-            f.nombreNegocio.isBlank() -> "Escribe el nombre de tu negocio."
-            f.telefonoNegocio.isBlank() -> "Escribe el teléfono del negocio."
+            f.nombreNegocio.isBlank() -> "Escriba el nombre de su negocio."
+            f.telefonoNegocio.isBlank() -> "Escriba el teléfono del negocio."
             f.emailNegocio.isNotBlank() && !FORMATO_CORREO.matches(f.emailNegocio.trim()) -> "El correo no es válido."
             !SincronizacionUsuarios.nombreValido(f.nombreUsuario) ->
                 "El usuario debe tener de 1 a 50 letras, números o . _ @ - (sin espacios)."
-            f.nombreCompleto.isBlank() -> "Escribe tu nombre completo."
+            f.nombreCompleto.isBlank() -> "Escriba su nombre completo."
             f.clave.trim().length < 4 -> "La contraseña debe tener al menos 4 caracteres."
             f.clave != f.confirmarClave -> "Las contraseñas no coinciden."
             else -> null
@@ -304,7 +304,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                         guardarDatosDelNegocio(datos)
                         if (repositorio.contarUsuarios() > 0) {
                             _bienvenida.value = BienvenidaUiState()
-                            _uiState.update { it.copy(mensajeExito = "¡Tu licencia ya estaba activa! Inicia sesión con tu usuario.") }
+                            _uiState.update { it.copy(mensajeExito = "¡Su licencia ya estaba activa! Inicie sesión con su usuario.") }
                             null
                         } else {
                             crearAdministradorLocal(f) ?: run { entrarComo(f.nombreUsuario, f.clave); null }
@@ -314,8 +314,8 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 is ResultadoRegistro.Rechazado -> resultado.mensaje
                 is ResultadoRegistro.Rechazada -> resultado.mensaje
-                is ResultadoRegistro.SinConexion -> "Para registrarte necesitas internet. ${resultado.mensaje}"
-                ResultadoRegistro.SinRegistro -> "No se pudo enviar el registro. Intenta de nuevo."
+                is ResultadoRegistro.SinConexion -> "Para registrarse necesita internet. ${resultado.mensaje}"
+                ResultadoRegistro.SinRegistro -> "No se pudo enviar el registro. Inténtelo de nuevo."
             }
             if (falla != null) _bienvenida.update { it.copy(estaGuardando = false, error = falla) }
         }
@@ -376,7 +376,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         val f = _bienvenida.value
         val clave = LicenciaViewModel.claveNormalizada(f.claveLicencia)
         if (clave == null) {
-            _bienvenida.update { it.copy(error = "Ingresa la clave completa: 12 letras o números (XXXX-XXXX-XXXX).") }
+            _bienvenida.update { it.copy(error = "Ingrese la clave completa: 12 letras o números (XXXX-XXXX-XXXX).") }
             return
         }
         _bienvenida.update { it.copy(estaGuardando = true, claveLicencia = clave) }
@@ -389,11 +389,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             if (repositorio.contarUsuarios() > 0) {
                 // Llegaron los usuarios de la licencia: la pantalla pasa sola al inicio de sesión.
                 _bienvenida.value = BienvenidaUiState()
-                _uiState.update { it.copy(mensajeExito = "¡Licencia activada! Inicia sesión con tu usuario.") }
+                _uiState.update { it.copy(mensajeExito = "¡Licencia activada! Inicie sesión con su usuario.") }
             } else {
                 _bienvenida.value = BienvenidaUiState(
-                    aviso = "¡Licencia activada! Tu licencia todavía no tiene usuarios: crea el administrador. " +
-                        "Si ya tenía usuarios, revisa tu conexión y vuelve a intentarlo."
+                    aviso = "¡Licencia activada! Su licencia todavía no tiene usuarios: cree el administrador. " +
+                        "Si ya tenía usuarios, revise su conexión y vuelva a intentarlo."
                 )
             }
         }
