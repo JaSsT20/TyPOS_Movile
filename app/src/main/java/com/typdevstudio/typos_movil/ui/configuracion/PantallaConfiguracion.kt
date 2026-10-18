@@ -1152,7 +1152,7 @@ private fun SubPantallaDisenoTicket(viewModel: ConfiguracionViewModel, estado: C
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Firma fija: 'Powered by TyPOS Móvil' (Fuente B discreta)",
+                            text = "Firma fija: 'Powered by TyPOS Móvil'",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

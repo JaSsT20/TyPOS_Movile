@@ -51,9 +51,10 @@ object ServicioImpresoraBluetooth {
     private val COMANDO_TAMANO_DOBLE_ALTO = byteArrayOf(0x1D, 0x21, 0x01) // 1x ancho, 2x alto (Recomendado)
     private val COMANDO_TAMANO_DOBLE_ANCHO = byteArrayOf(0x1D, 0x21, 0x10) // 2x ancho, 1x alto
     private val COMANDO_TAMANO_DOBLE = byteArrayOf(0x1D, 0x21, 0x11) // 2x ancho, 2x alto
-    private val COMANDO_FUENTE_B = byteArrayOf(0x1B, 0x4D, 0x01) // Fuente B (más pequeña para branding discreto)
-    private val COMANDO_FUENTE_A = byteArrayOf(0x1B, 0x4D, 0x00) // Fuente A (estándar)
-
+    // ESC ! n (modo de impresión) en lugar de ESC M: las portátiles lo soportan más. Bit 0 = fuente B.
+    private val COMANDO_FUENTE_B = byteArrayOf(0x1B, 0x21, 0x01) // Fuente B (más pequeña para branding discreto)
+    private val COMANDO_FUENTE_A = byteArrayOf(0x1B, 0x21, 0x00) // Fuente A (estándar)
+    private val COMANDO_ESTADO_IMPRESORA = byteArrayOf(0x10, 0x04, 0x01) // DLE EOT 1: estado en tiempo real
     fun calcularAnchoColumnas(configuracion: ConfiguracionNegocioEntidad): Int {
         return if (configuracion.columnasPersonalizadas in 16..80) {
             configuracion.columnasPersonalizadas
@@ -153,7 +154,7 @@ object ServicioImpresoraBluetooth {
             flujoSalida.flush()
 
             alCambiarEtapa(EtapaImpresion.FINALIZANDO)
-            Thread.sleep((bytes.size * 3L).coerceIn(800L, 6000L))
+            esperarRecepcionCompleta(socket, bytes.size)
             socket.close()
 
             ResultadoImpresion.Exito
@@ -171,6 +172,42 @@ object ServicioImpresoraBluetooth {
         }
     }
 
+    /**
+     * Cerrar el socket con datos aún en camino corta el final del ticket (el pie y "Powered by").
+     * Se envía DLE EOT 1 (estado en tiempo real): la impresora lo contesta al recibirlo, y como llega
+     * después del ticket, su respuesta confirma que ya recibió todo. Si no contesta, se espera un tiempo
+     * proporcional al tamaño del ticket.
+     */
+    private fun esperarRecepcionCompleta(socket: BluetoothSocket, cantidadBytes: Int) {
+        val esperaSinRespuestaMs = (cantidadBytes * 3L).coerceIn(1500L, 6000L)
+        try {
+            val entrada = socket.inputStream
+            while (entrada.available() > 0) entrada.read() // descarta respuestas viejas
+            socket.outputStream.write(COMANDO_ESTADO_IMPRESORA)
+            socket.outputStream.flush()
+
+            val limite = System.currentTimeMillis() + esperaSinRespuestaMs
+            while (System.currentTimeMillis() < limite) {
+                if (entrada.available() > 0) {
+                    entrada.read()
+                    // Ya tiene todo en su memoria; un margen corto antes de cortar la conexión.
+                    Thread.sleep(300)
+                    return
+                }
+                Thread.sleep(50)
+            }
+        } catch (_: Exception) {
+            Thread.sleep(esperaSinRespuestaMs)
+        }
+    }
+
+    /** Reinicia la impresora, sale del modo chino y selecciona CP850 para que salgan las tildes y la ñ. */
+    private fun escribirInicio(buffer: ByteArrayOutputStream) {
+        buffer.write(COMANDO_INICIALIZAR)
+        buffer.write(CodificadorEscPos.COMANDO_CANCELAR_MODO_CHINO)
+        buffer.write(COMANDO_CODEPAGE_CP850)
+    }
+
     private fun ByteArrayOutputStream.escribirTexto(texto: String) {
         this.write(CodificadorEscPos.aBytes(texto))
     }
@@ -182,8 +219,7 @@ object ServicioImpresoraBluetooth {
         val lineaDivisoria = "-".repeat(ancho) + "\n"
         val buffer = ByteArrayOutputStream()
 
-        buffer.write(COMANDO_INICIALIZAR)
-        buffer.write(COMANDO_CODEPAGE_CP850)
+        escribirInicio(buffer)
         buffer.write(COMANDO_ALINEAR_CENTRO)
 
         // Nombre según tamaño configurado
@@ -245,8 +281,7 @@ object ServicioImpresoraBluetooth {
         val formatoFecha = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
         val fechaTexto = formatoFecha.format(Date(venta.fecha))
 
-        buffer.write(COMANDO_INICIALIZAR)
-        buffer.write(COMANDO_CODEPAGE_CP850)
+        escribirInicio(buffer)
 
         // ==========================================
         // 1. ENCABEZADO DEL NEGOCIO (HEADER)

@@ -11,6 +11,10 @@ import java.io.ByteArrayOutputStream
  */
 object CodificadorEscPos {
 
+    // FS . (0x1C, 0x2E): cancela el modo de caracteres chinos (2 bytes). Muchas impresoras portátiles
+    // vienen con ese modo activo y descartan los bytes >= 0x80, por eso "Descripción" salía "Descripcin".
+    val COMANDO_CANCELAR_MODO_CHINO = byteArrayOf(0x1C, 0x2E)
+
     // Comando ESC/POS para seleccionar la tabla de caracteres Code Page 850 (Multilingual Latin I)
     // ESC t 2 (0x1B, 0x74, 0x02)
     val COMANDO_SELECCIONAR_CP850 = byteArrayOf(0x1B, 0x74, 0x02)
