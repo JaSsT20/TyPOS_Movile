@@ -32,6 +32,7 @@ object LectorCsvProductos {
         productosExistentes: List<ProductoEntidad>
     ): List<ProductoImportadoUi> {
         val lineasCrudas = mutableListOf<String>()
+        var delimitador = ','
 
         BufferedReader(InputStreamReader(inputStream, StandardCharsets.UTF_8)).use { lector ->
             var linea: String? = lector.readLine()
@@ -41,21 +42,35 @@ object LectorCsvProductos {
                 linea = linea.substring(1)
             }
 
+            // Un campo entre comillas puede tener saltos de línea: se juntan las líneas hasta cerrar las comillas.
+            var registro: StringBuilder? = null
+            var estado = EstadoComillas()
             while (linea != null) {
-                if (linea.isNotBlank()) {
-                    lineasCrudas.add(linea)
+                if (lineasCrudas.isEmpty() && registro == null && linea.isNotBlank()) {
+                    delimitador = detectarDelimitador(linea)
+                }
+                if (registro == null) {
+                    registro = StringBuilder(linea)
+                } else {
+                    registro.append('\n').append(linea)
+                }
+                estado = estado.avanzar(linea, delimitador)
+                if (!estado.dentroDeComillas) {
+                    if (registro.isNotBlank()) lineasCrudas.add(registro.toString())
+                    registro = null
+                    estado = EstadoComillas()
                 }
                 linea = lector.readLine()
             }
+            if (registro != null && registro.isNotBlank()) lineasCrudas.add(registro.toString())
         }
 
         if (lineasCrudas.isEmpty()) {
             return emptyList()
         }
 
-        // 1. Detectar el delimitador basado en la fila de encabezados
+        // 1. El delimitador se detectó con la fila de encabezados
         val lineaEncabezado = lineasCrudas.first()
-        val delimitador = detectarDelimitador(lineaEncabezado)
 
         // 2. Parsear y mapear índices de columnas
         val encabezados = parsearFilaCsv(lineaEncabezado, delimitador).map { normalizarTexto(it) }
@@ -332,8 +347,11 @@ object LectorCsvProductos {
                     // Doble comilla escapada: "" -> "
                     sb.append('"')
                     i++
-                } else {
+                } else if (dentroDeComillas || sb.isBlank()) {
                     dentroDeComillas = !dentroDeComillas
+                } else {
+                    // Una comilla en medio del texto (ej. TV 32") es parte del valor, no abre un entrecomillado.
+                    sb.append(c)
                 }
             } else if (c == delimitador && !dentroDeComillas) {
                 resultado.add(sb.toString().trim())
@@ -346,6 +364,38 @@ object LectorCsvProductos {
 
         resultado.add(sb.toString().trim())
         return resultado
+    }
+
+    /**
+     * Sigue las comillas a lo largo de una fila para saber si un salto de línea cae dentro de un campo entrecomillado.
+     * Usa las mismas reglas que [parsearFilaCsv]: las comillas solo abren al inicio de un campo.
+     */
+    internal data class EstadoComillas(
+        val dentroDeComillas: Boolean = false,
+        val campoVacio: Boolean = true,
+    ) {
+        fun avanzar(linea: String, delimitador: Char): EstadoComillas {
+            var dentro = dentroDeComillas
+            var vacio = campoVacio
+            var i = 0
+            while (i < linea.length) {
+                val c = linea[i]
+                if (dentro) {
+                    if (c == '"') {
+                        if (i + 1 < linea.length && linea[i + 1] == '"') i++ else dentro = false
+                    }
+                } else if (c == '"' && vacio) {
+                    dentro = true
+                    vacio = false
+                } else if (c == delimitador) {
+                    vacio = true
+                } else if (!c.isWhitespace()) {
+                    vacio = false
+                }
+                i++
+            }
+            return EstadoComillas(dentro, vacio)
+        }
     }
 
     /**
