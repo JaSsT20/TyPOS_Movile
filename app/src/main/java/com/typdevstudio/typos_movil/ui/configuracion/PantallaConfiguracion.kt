@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Error
@@ -132,6 +133,7 @@ import com.typdevstudio.typos_movil.ui.theme.VerdeExito
 import com.typdevstudio.typos_movil.ui.configuracion.backup.SubPantallaCopiasSeguridad
 import com.typdevstudio.typos_movil.ui.configuracion.importacion.PantallaImportarProductos
 import com.typdevstudio.typos_movil.ui.configuracion.importacion.SubPantallaImportarDatos
+import com.typdevstudio.typos_movil.ui.configuracion.exportacion.SubPantallaExportarDatos
 
 enum class SeccionConfiguracion(val titulo: String) {
     MENU_PRINCIPAL("Configuración"),
@@ -141,6 +143,7 @@ enum class SeccionConfiguracion(val titulo: String) {
     IMPRESORA("Impresora de Tickets"),
     IMPORTAR_DATOS("Importar Datos"),
     IMPORTAR_PRODUCTOS("Importar Productos"),
+    EXPORTAR_DATOS("Exportar Productos"),
     COPIAS_SEGURIDAD("Copias de Seguridad"),
     INFO_SISTEMA("Información del Sistema")
 }
@@ -303,6 +306,9 @@ fun PantallaConfiguracion(
                                 },
                                 alVerCatalogo = alNavegarAProductos
                             )
+                        }
+                        SeccionConfiguracion.EXPORTAR_DATOS -> {
+                            SubPantallaExportarDatos()
                         }
                         SeccionConfiguracion.COPIAS_SEGURIDAD -> {
                             SubPantallaCopiasSeguridad()
@@ -486,6 +492,15 @@ private fun MenuPrincipalConfiguracion(
                     titulo = "Importar Datos",
                     subtitulo = "Importar productos desde plantilla Excel / CSV",
                     alHacerClic = { alSeleccionarSeccion(SeccionConfiguracion.IMPORTAR_DATOS) },
+                    mostrarDivisor = true
+                )
+
+                ItemMenuAjustes(
+                    icono = Icons.Filled.CloudUpload,
+                    colorIcono = Color(0xFF43A047), // Verde
+                    titulo = "Exportar Productos",
+                    subtitulo = "Archivo con todos sus productos y sus fotos para guardar o enviar",
+                    alHacerClic = { alSeleccionarSeccion(SeccionConfiguracion.EXPORTAR_DATOS) },
                     mostrarDivisor = true
                 )
 
