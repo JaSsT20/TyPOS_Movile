@@ -12,6 +12,12 @@ class VentaRepositorio(private val ventaDao: VentaDao) {
 
     fun obtenerTodasLasVentas(): Flow<List<VentaConDetalles>> = ventaDao.obtenerTodasLasVentas()
 
+    fun obtenerVentasEntreFechas(desde: Long, hasta: Long): Flow<List<VentaConDetalles>> =
+        ventaDao.obtenerVentasEntreFechas(desde, hasta)
+
+    suspend fun obtenerVentasEntreFechasDirecto(desde: Long, hasta: Long): List<VentaConDetalles> =
+        withContext(Dispatchers.IO) { ventaDao.obtenerVentasEntreFechasDirecto(desde, hasta) }
+
     suspend fun obtenerVentaPorId(idVenta: Long): VentaConDetalles? = withContext(Dispatchers.IO) {
         ventaDao.obtenerVentaPorId(idVenta)
     }

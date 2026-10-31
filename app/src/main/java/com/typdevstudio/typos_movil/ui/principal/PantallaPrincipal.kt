@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
@@ -61,6 +62,7 @@ import com.typdevstudio.typos_movil.datos.local.GestorSesion
 import com.typdevstudio.typos_movil.datos.repositorio.UsuarioRepositorio
 import com.typdevstudio.typos_movil.ui.componentes.DialogoConfirmacionSalida
 import com.typdevstudio.typos_movil.ui.licencia.BannerLicencia
+import com.typdevstudio.typos_movil.ui.theme.AmarilloAdvertencia
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimario
 import com.typdevstudio.typos_movil.ui.theme.AzulPrimarioClaro
 import com.typdevstudio.typos_movil.ui.theme.Blanco
@@ -74,6 +76,7 @@ fun PantallaPrincipal(
     alNavegarAVentas: () -> Unit,
     alNavegarAProductos: () -> Unit,
     alNavegarAHistorial: () -> Unit,
+    alNavegarAMetricas: () -> Unit,
     alNavegarAConfiguracion: () -> Unit,
     alNavegarALicencia: () -> Unit,
     alCerrarSesion: () -> Unit
@@ -217,6 +220,8 @@ fun PantallaPrincipal(
                 }
             }
 
+            TarjetaVentasHoy(alHacerClic = alNavegarAMetricas)
+
             // Opciones Principales del POS
             Text(
                 text = "¿Qué desea hacer?",
@@ -248,6 +253,14 @@ fun PantallaPrincipal(
                 icono = Icons.AutoMirrored.Filled.ReceiptLong,
                 colorIcono = CelesteInformacion,
                 alHacerClic = alNavegarAHistorial
+            )
+
+            TarjetaModuloPos(
+                titulo = "Métricas y Reportes",
+                descripcion = "Gráficos de ventas e imprimir reporte del día",
+                icono = Icons.Filled.Insights,
+                colorIcono = AmarilloAdvertencia,
+                alHacerClic = alNavegarAMetricas
             )
 
             TarjetaModuloPos(

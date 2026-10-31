@@ -43,6 +43,10 @@ import com.typdevstudio.typos_movil.ui.licencia.DialogoAvisoVencimiento
 import com.typdevstudio.typos_movil.ui.licencia.LicenciaViewModel
 import com.typdevstudio.typos_movil.ui.licencia.PantallaLicencia
 import com.typdevstudio.typos_movil.ui.login.PantallaLogin
+import com.typdevstudio.typos_movil.ui.metricas.MetricasViewModel
+import com.typdevstudio.typos_movil.ui.metricas.PantallaMetricas
+import com.typdevstudio.typos_movil.ui.metricas.PantallaReporteVentas
+import com.typdevstudio.typos_movil.ui.metricas.ReporteVentasViewModel
 import com.typdevstudio.typos_movil.ui.principal.PantallaPrincipal
 import com.typdevstudio.typos_movil.ui.productos.PantallaFormularioProducto
 import com.typdevstudio.typos_movil.ui.productos.PantallaProductos
@@ -67,6 +71,8 @@ sealed class Ruta(val ruta: String) {
     data object Configuracion : Ruta("configuracion")
     data object Licencia : Ruta("licencia")
     data object Usuarios : Ruta("usuarios")
+    data object Metricas : Ruta("metricas")
+    data object ReporteVentas : Ruta("reporte_ventas")
 }
 
 @Composable
@@ -231,6 +237,9 @@ fun NavegacionApp() {
                 alNavegarAHistorial = {
                     controladorNavegacion.navigate(Ruta.Historial.ruta)
                 },
+                alNavegarAMetricas = {
+                    controladorNavegacion.navigate(Ruta.Metricas.ruta) { launchSingleTop = true }
+                },
                 alNavegarAConfiguracion = {
                     navegarComoAdministrador(Ruta.Configuracion.ruta)
                 },
@@ -262,6 +271,29 @@ fun NavegacionApp() {
         composable(Ruta.Historial.ruta) {
             PantallaHistorialVentas(
                 viewModel = historialViewModel,
+                alVolver = {
+                    controladorNavegacion.popBackStack()
+                }
+            )
+        }
+
+        composable(Ruta.Metricas.ruta) {
+            val metricasViewModel: MetricasViewModel = viewModel()
+            PantallaMetricas(
+                viewModel = metricasViewModel,
+                alVolver = {
+                    controladorNavegacion.popBackStack()
+                },
+                alAbrirReporte = {
+                    controladorNavegacion.navigate(Ruta.ReporteVentas.ruta) { launchSingleTop = true }
+                }
+            )
+        }
+
+        composable(Ruta.ReporteVentas.ruta) {
+            val reporteViewModel: ReporteVentasViewModel = viewModel()
+            PantallaReporteVentas(
+                viewModel = reporteViewModel,
                 alVolver = {
                     controladorNavegacion.popBackStack()
                 }
