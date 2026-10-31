@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothSocket
 import com.typdevstudio.typos_movil.datos.local.entidades.ConfiguracionNegocioEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.DetalleVentaEntidad
 import com.typdevstudio.typos_movil.datos.local.entidades.VentaEntidad
+import com.typdevstudio.typos_movil.utilidades.reportes.ResumenVentas
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -28,6 +29,29 @@ enum class EtapaImpresion {
     ENVIANDO,
     FINALIZANDO
 }
+
+/** Secciones opcionales del Reporte de Ventas (el resumen general y el efectivo en caja siempre salen). */
+data class OpcionesReporteVentas(
+    val metodosPago: Boolean = true,
+    val cajeros: Boolean = true,
+    val productos: Boolean = true,
+    val anuladas: Boolean = true,
+    val detalleFacturas: Boolean = false
+)
+
+data class DatosReporteVentas(
+    val desde: Long,
+    val hasta: Long, // Exclusivo: medianoche del día siguiente al último
+    val esUnSoloDia: Boolean,
+    val cajero: String?, // null = todos
+    val impresoPor: String,
+    val fechaImpresion: Long = System.currentTimeMillis(),
+    val resumen: ResumenVentas,
+    val ventas: List<VentaEntidad>,
+    val opciones: OpcionesReporteVentas
+)
+
+const val LIMITE_PRODUCTOS_REPORTE = 10
 
 data class DispositivoBluetoothPos(
     val nombre: String,
@@ -452,6 +476,163 @@ object ServicioImpresoraBluetooth {
         buffer.write(COMANDO_FUENTE_A)
 
         // Avance de papel para corte
+        buffer.escribirTexto("\n\n\n\n")
+
+        return buffer.toByteArray()
+    }
+
+    suspend fun imprimirReporteVentas(
+        direccionMac: String,
+        configuracion: ConfiguracionNegocioEntidad,
+        datos: DatosReporteVentas,
+        alCambiarEtapa: (EtapaImpresion) -> Unit = {}
+    ): ResultadoImpresion = enviarAImpresora(direccionMac, alCambiarEtapa) {
+        generarBytesReporteVentas(configuracion, datos)
+    }
+
+    /** Reporte (cierre del día o de un rango de fechas) con las secciones que el usuario eligió. */
+    fun generarBytesReporteVentas(
+        configuracion: ConfiguracionNegocioEntidad,
+        datos: DatosReporteVentas
+    ): ByteArray {
+        val ancho = calcularAnchoColumnas(configuracion)
+        val lineaDivisoria = "-".repeat(ancho) + "\n"
+        val lineaDoble = "=".repeat(ancho) + "\n"
+        val resumen = datos.resumen
+        val opciones = datos.opciones
+        val formatoFecha = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
+        val formatoHora = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        fun monto(valor: Double) = String.format(Locale.US, "%,.2f", valor)
+        val buffer = ByteArrayOutputStream()
+
+        escribirInicio(buffer)
+
+        // Encabezado del negocio
+        buffer.write(COMANDO_ALINEAR_CENTRO)
+        buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+        buffer.write(COMANDO_NEGRITA_ON)
+        buffer.escribirTexto("${configuracion.nombreNegocio}\n")
+        buffer.write(COMANDO_TAMANO_NORMAL)
+        buffer.write(COMANDO_NEGRITA_OFF)
+        if (configuracion.posicionRnc == 0 && !configuracion.rncCedula.isNullOrBlank()) {
+            buffer.escribirTexto("RNC / Cédula: ${configuracion.rncCedula}\n")
+        }
+        if (configuracion.posicionTelefono != 2 && !configuracion.telefono.isNullOrBlank()) {
+            buffer.escribirTexto("Tel: ${configuracion.telefono}\n")
+        }
+
+        buffer.escribirTexto(lineaDoble)
+        buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+        buffer.write(COMANDO_NEGRITA_ON)
+        buffer.escribirTexto("REPORTE DE VENTAS\n")
+        buffer.write(COMANDO_TAMANO_NORMAL)
+        buffer.escribirTexto(if (datos.esUnSoloDia) "CIERRE DEL DÍA\n" else "RANGO DE FECHAS\n")
+        buffer.write(COMANDO_NEGRITA_OFF)
+        buffer.escribirTexto(lineaDoble)
+
+        buffer.write(COMANDO_ALINEAR_IZQ)
+        buffer.escribirTexto(formatearLineaDosColumnas("Desde:", formatoFecha.format(Date(datos.desde)), ancho))
+        buffer.escribirTexto(formatearLineaDosColumnas("Hasta:", formatoFecha.format(Date(datos.hasta - 60_000)), ancho))
+        buffer.escribirTexto(formatearLineaDosColumnas("Impreso:", formatoFecha.format(Date(datos.fechaImpresion)), ancho))
+        buffer.escribirTexto(formatearLineaDosColumnas("Por:", datos.impresoPor.take(ancho - 5), ancho))
+        buffer.escribirTexto(formatearLineaDosColumnas("Cajero:", (datos.cajero ?: "Todos").take(ancho - 8), ancho))
+
+        // Resumen general
+        buffer.escribirTexto(lineaDivisoria)
+        buffer.write(COMANDO_NEGRITA_ON)
+        buffer.escribirTexto("RESUMEN GENERAL\n")
+        buffer.write(COMANDO_NEGRITA_OFF)
+        buffer.escribirTexto(formatearLineaDosColumnas("Facturas emitidas", "${resumen.cantidadFacturas}", ancho))
+        buffer.escribirTexto(formatearLineaDosColumnas("Facturas anuladas", "${resumen.cantidadAnuladas}", ancho))
+        buffer.escribirTexto(formatearLineaDosColumnas("Subtotal", monto(resumen.subtotal), ancho))
+        if (resumen.descuentos > 0) {
+            buffer.escribirTexto(formatearLineaDosColumnas("Descuentos", "-${monto(resumen.descuentos)}", ancho))
+        }
+        buffer.escribirTexto(formatearLineaDosColumnas("ITBIS", monto(resumen.itbis), ancho))
+        buffer.escribirTexto(lineaDivisoria)
+        buffer.write(COMANDO_TAMANO_DOBLE_ALTO)
+        buffer.write(COMANDO_NEGRITA_ON)
+        buffer.escribirTexto(formatearLineaDosColumnas("TOTAL", "$${monto(resumen.total)}", ancho))
+        buffer.write(COMANDO_TAMANO_NORMAL)
+        buffer.write(COMANDO_NEGRITA_OFF)
+        buffer.escribirTexto(formatearLineaDosColumnas("Ticket promedio", monto(resumen.ticketPromedio), ancho))
+
+        if (opciones.metodosPago && resumen.metodosPago.isNotEmpty()) {
+            buffer.escribirTexto(lineaDivisoria)
+            buffer.write(COMANDO_NEGRITA_ON)
+            buffer.escribirTexto("POR MÉTODO DE PAGO\n")
+            buffer.write(COMANDO_NEGRITA_OFF)
+            resumen.metodosPago.forEach {
+                buffer.escribirTexto(formatearLineaDosColumnas("${it.metodo} (${it.cantidadVentas})", monto(it.monto), ancho))
+            }
+            if (resumen.montoPendiente > 0.005) {
+                buffer.escribirTexto(formatearLineaDosColumnas("Pendiente de cobro", monto(resumen.montoPendiente), ancho))
+            }
+        }
+
+        if (opciones.cajeros && resumen.cajeros.isNotEmpty()) {
+            buffer.escribirTexto(lineaDivisoria)
+            buffer.write(COMANDO_NEGRITA_ON)
+            buffer.escribirTexto("POR CAJERO\n")
+            buffer.write(COMANDO_NEGRITA_OFF)
+            resumen.cajeros.forEach {
+                val montoTexto = monto(it.monto)
+                val etiqueta = "${it.nombre.take(ancho - montoTexto.length - 7)} (${it.cantidadVentas})"
+                buffer.escribirTexto(formatearLineaDosColumnas(etiqueta, montoTexto, ancho))
+            }
+        }
+
+        if (opciones.productos && resumen.productos.isNotEmpty()) {
+            buffer.escribirTexto(lineaDivisoria)
+            buffer.write(COMANDO_NEGRITA_ON)
+            buffer.escribirTexto("PRODUCTOS MÁS VENDIDOS\n")
+            buffer.write(COMANDO_NEGRITA_OFF)
+            resumen.productos.take(LIMITE_PRODUCTOS_REPORTE).forEach {
+                val cantidad = if (it.cantidad % 1.0 == 0.0) it.cantidad.toInt().toString() else String.format(Locale.US, "%.2f", it.cantidad)
+                buffer.escribirTexto("${it.nombre.take(ancho)}\n")
+                buffer.escribirTexto(formatearLineaDosColumnas("  x$cantidad", monto(it.monto), ancho))
+            }
+        }
+
+        if (opciones.anuladas && resumen.anuladas.isNotEmpty()) {
+            buffer.escribirTexto(lineaDivisoria)
+            buffer.write(COMANDO_NEGRITA_ON)
+            buffer.escribirTexto("FACTURAS ANULADAS\n")
+            buffer.write(COMANDO_NEGRITA_OFF)
+            resumen.anuladas.forEach {
+                buffer.escribirTexto(formatearLineaDosColumnas(it.numeroFactura, monto(it.monto), ancho))
+                if (!it.motivo.isNullOrBlank()) {
+                    buffer.escribirTexto("  Motivo: ${it.motivo}".take(ancho) + "\n")
+                }
+            }
+        }
+
+        if (opciones.detalleFacturas && datos.ventas.isNotEmpty()) {
+            buffer.escribirTexto(lineaDivisoria)
+            buffer.write(COMANDO_NEGRITA_ON)
+            buffer.escribirTexto("DETALLE DE FACTURAS\n")
+            buffer.write(COMANDO_NEGRITA_OFF)
+            datos.ventas.forEach { venta ->
+                val anulada = !venta.estadoVenta.equals("Completada", ignoreCase = true)
+                val izquierda = "${venta.numeroFactura} ${formatoHora.format(Date(venta.fecha))}"
+                buffer.escribirTexto(formatearLineaDosColumnas(izquierda, if (anulada) "ANULADA" else monto(venta.total), ancho))
+            }
+        }
+
+        buffer.escribirTexto(lineaDoble)
+        buffer.write(COMANDO_NEGRITA_ON)
+        buffer.escribirTexto(formatearLineaDosColumnas("EFECTIVO EN CAJA", monto(resumen.efectivoEnCaja), ancho))
+        buffer.write(COMANDO_NEGRITA_OFF)
+        buffer.escribirTexto("(Solo ventas en efectivo)\n")
+        buffer.escribirTexto(lineaDoble)
+
+        // Firma y pie
+        buffer.write(COMANDO_ALINEAR_CENTRO)
+        buffer.escribirTexto("\n\n" + "_".repeat((ancho * 3 / 4).coerceAtLeast(16)) + "\n")
+        buffer.escribirTexto("Firma del cajero\n\n")
+        buffer.write(COMANDO_FUENTE_B)
+        buffer.escribirTexto("Powered by TyPOS Móvil\n")
+        buffer.write(COMANDO_FUENTE_A)
         buffer.escribirTexto("\n\n\n\n")
 
         return buffer.toByteArray()

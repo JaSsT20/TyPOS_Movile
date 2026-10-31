@@ -17,6 +17,15 @@ interface VentaDao {
     @Query("SELECT * FROM ventas ORDER BY fecha DESC")
     fun obtenerTodasLasVentas(): Flow<List<VentaConDetalles>>
 
+    // Rango [desde, hasta) en milisegundos; usado por Métricas y el Reporte de Ventas
+    @Transaction
+    @Query("SELECT * FROM ventas WHERE fecha >= :desde AND fecha < :hasta ORDER BY fecha ASC")
+    fun obtenerVentasEntreFechas(desde: Long, hasta: Long): Flow<List<VentaConDetalles>>
+
+    @Transaction
+    @Query("SELECT * FROM ventas WHERE fecha >= :desde AND fecha < :hasta ORDER BY fecha ASC")
+    suspend fun obtenerVentasEntreFechasDirecto(desde: Long, hasta: Long): List<VentaConDetalles>
+
     @Transaction
     @Query("SELECT * FROM ventas WHERE id = :idVenta LIMIT 1")
     suspend fun obtenerVentaPorId(idVenta: Long): VentaConDetalles?
